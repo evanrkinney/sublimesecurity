@@ -112,6 +112,12 @@ MAX_LIMIT = 500
 SCIM_DEFAULT_COUNT = 100
 SCIM_MAX_COUNT = 1000
 
+# (connect, read) timeouts, in seconds
+DEFAULT_TIMEOUT = (10, 30)
+RAW_TIMEOUT = (10, 60)
+
+BINEXPLODE_MAX_FILE_SIZE_BYTES = 37 * 1024 * 1024
+
 BASE_URLS = {
     "NA-East": "https://platform.sublime.security",
     "NA-West": "https://na-west.platform.sublime.security",
@@ -123,60 +129,3 @@ BASE_URLS = {
 
 SUCC_CONNECTIVITY_TEST = "Test Connectivity Passed"
 ERR_CONNECTIVITY_TEST = "Test Connectivity Failed"
-
-CLASSIFICATIONS = [
-    "malicious",
-    "benign",
-    "unwanted",
-    "simulation",
-    "graymail",
-    "spam",
-    "violation",
-    "non-violation",
-]
-
-REPORT_LABELS = [
-    "spam",
-    "phishing",
-    "false_positive",
-    "false_negative",
-    "phishing_simulation",
-    "graymail",
-    "violation",
-    "non-violation",
-]
-
-REVIEW_CLASSIFICATIONS = [
-    "malicious",
-    "benign",
-    "simulation",
-    "graymail",
-    "spam",
-    "skip",
-    "violation",
-    "non-violation",
-]
-
-MESSAGE_ACTIONS = [
-    "restore",
-    "warning_banner",
-    "quarantine",
-    "trash",
-    "move_to_spam",
-    "move_to_graymail",
-    "delete_calendar_events",
-]
-
-RULE_TYPES = [
-    "detection",
-    "dlp",
-    "triage",
-]
-
-RULE_SEVERITIES = [
-    "informational",
-    "low",
-    "medium",
-    "high",
-    "critical",
-]

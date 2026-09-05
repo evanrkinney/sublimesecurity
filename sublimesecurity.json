@@ -123,7 +123,7 @@
             "default": "amber"
         },
         "webhook_signing_secret": {
-            "data_type": "string",
+            "data_type": "password",
             "order": 7,
             "description": "Sublime webhook signing secret (see README)",
             "required": false
@@ -171,7 +171,7 @@
             "identifier": "upload_binary",
             "description": "Upload a binary to be binexploded. Results expire after 1 hour. Max original file size 37 MB",
             "type": "investigate",
-            "read_only": true,
+            "read_only": false,
             "parameters": {
                 "vault_id": {
                     "description": "Vault ID of the file to upload",
@@ -396,6 +396,13 @@
                 {
                     "data_path": "action_result.message",
                     "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.summary.screenshot_vault_id",
+                    "data_type": "string",
+                    "contains": [
+                        "vault id"
+                    ]
                 },
                 {
                     "data_path": "action_result.summary.disposition",
@@ -1123,6 +1130,12 @@
                     "data_type": "string",
                     "required": false,
                     "order": 0
+                },
+                "entry_type": {
+                    "description": "Filter by list entry type (e.g. string, user_group, provider_org_unit). If omitted, lists of all entry types are returned",
+                    "data_type": "string",
+                    "required": false,
+                    "order": 1
                 }
             },
             "output": [
@@ -1190,6 +1203,10 @@
                 {
                     "data_path": "summary.total_objects",
                     "data_type": "numeric"
+                },
+                {
+                    "data_path": "action_result.parameter.entry_type",
+                    "data_type": "string"
                 }
             ],
             "render": {

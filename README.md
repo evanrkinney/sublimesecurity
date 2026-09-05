@@ -21,7 +21,7 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 **webhook_container_label** | optional | string | SOAR label for inbound webhook containers |
 **webhook_container_severity** | optional | string | Severity for webhook containers; see README for 'use alert severity' |
 **webhook_container_sensitivity** | optional | string | TLP sensitivity for inbound webhook containers |
-**webhook_signing_secret** | optional | string | Sublime webhook signing secret (see README) |
+**webhook_signing_secret** | optional | password | Sublime webhook signing secret (see README) |
 **webhook_signature_tolerance_seconds** | optional | numeric | Reject signatures older than this many seconds |
 **webhook_fetch_eml** | optional | boolean | Fetch each flagged message's EML into container vault |
 **webhook_container_sdi_strategy** | optional | string | How webhook containers are deduplicated (see README) |
@@ -129,7 +129,7 @@ No Output
 Upload a binary to be binexploded. Results expire after 1 hour. Max original file size 37 MB
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -208,6 +208,7 @@ DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
 action_result.status | string | | success failed |
 action_result.message | string | | |
+action_result.summary.screenshot_vault_id | string | `vault id` | |
 action_result.summary.disposition | string | | benign phishing unknown |
 action_result.summary.confidence | string | | |
 action_result.summary.brand_name | string | | |
@@ -441,6 +442,7 @@ Read only: **True**
 PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 --------- | -------- | ----------- | ---- | --------
 **name** | optional | Filter by list name | string | |
+**entry_type** | optional | Filter by list entry type (e.g. string, user_group, provider_org_unit). If omitted, lists of all entry types are returned | string | |
 
 #### Action Output
 
@@ -459,6 +461,7 @@ action_result.data.\*.updated_at | string | | |
 action_result.parameter.name | string | | |
 summary.total_objects_successful | numeric | | |
 summary.total_objects | numeric | | |
+action_result.parameter.entry_type | string | | |
 
 ## action: 'create list'
 

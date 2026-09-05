@@ -15,6 +15,8 @@
 
 import base64
 import json
+import os
+import urllib.parse
 
 import phantom.app as phantom
 import phantom.vault as ph_vault
@@ -89,8 +91,15 @@ class SublimeSecurityConnector(BaseConnector):
         else:
             return action_result.set_status(phantom.APP_ERROR, "Either vault_id or base64_data must be provided"), None
 
-    def _make_rest_call(self, endpoint, action_result, headers=None, params=None, data=None, json_data=None, method="get"):
+    def _safe_id(self, value):
+        """URL-encode a path-segment identifier so it can't alter the request path."""
+        return urllib.parse.quote(str(value), safe="")
+
+    def _make_rest_call(
+        self, endpoint, action_result, headers=None, params=None, data=None, json_data=None, method="get", return_status_code=False
+    ):
         """Make a REST API call to the Sublime Security platform."""
+        status_code = None
         try:
             url = f"{self._base_url}{endpoint}"
             self.debug_print(f"Making REST call to: {url}")
@@ -108,37 +117,47 @@ class SublimeSecurityConnector(BaseConnector):
                 headers=request_headers,
                 params=params,
                 verify=self._verify,
+                timeout=DEFAULT_TIMEOUT,
             )
+            status_code = response.status_code
 
             if hasattr(action_result, "add_debug_data"):
                 action_result.add_debug_data({"r_status_code": response.status_code})
-                action_result.add_debug_data({"r_text": response.text})
-                action_result.add_debug_data({"r_headers": dict(response.headers)})
+                action_result.add_debug_data({"r_body_length": len(response.content or b"")})
+                request_id = response.headers.get("X-Request-Id") or response.headers.get("Request-Id")
+                if request_id:
+                    action_result.add_debug_data({"r_request_id": request_id})
 
             if 200 <= response.status_code < 300:
                 # 204 No Content
                 if response.status_code == 204 or not response.text:
-                    return phantom.APP_SUCCESS, {}
-                try:
-                    return phantom.APP_SUCCESS, response.json()
-                except ValueError:
-                    return phantom.APP_SUCCESS, response.text
+                    ret_val, result = phantom.APP_SUCCESS, {}
+                else:
+                    try:
+                        ret_val, result = phantom.APP_SUCCESS, response.json()
+                    except ValueError:
+                        ret_val, result = phantom.APP_SUCCESS, response.text
+            else:
+                error_message = f"Error from server. Status Code: {response.status_code}"
+                if response.text:
+                    try:
+                        resp_json = response.json()
+                        server_error = resp_json.get("error", resp_json.get("message", "Unknown error"))
+                        error_message = f"Error from server. Status Code: {response.status_code}. Error: {server_error}"
+                    except ValueError:
+                        error_message = f"Error from server. Status Code: {response.status_code}. Error: {response.text}"
+                ret_val, result = action_result.set_status(phantom.APP_ERROR, error_message), None
 
-            error_message = f"Error from server. Status Code: {response.status_code}"
-            if response.text:
-                try:
-                    resp_json = response.json()
-                    server_error = resp_json.get("error", resp_json.get("message", "Unknown error"))
-                    error_message = f"Error from server. Status Code: {response.status_code}. Error: {server_error}"
-                except ValueError:
-                    error_message = f"Error from server. Status Code: {response.status_code}. Error: {response.text}"
-
-            return action_result.set_status(phantom.APP_ERROR, error_message), None
-
+        except requests.exceptions.Timeout as e:
+            ret_val, result = action_result.set_status(phantom.APP_ERROR, f"Request timed out: {e!s}"), None
         except requests.exceptions.ConnectionError as e:
-            return action_result.set_status(phantom.APP_ERROR, f"Connection error: {e!s}"), None
+            ret_val, result = action_result.set_status(phantom.APP_ERROR, f"Connection error: {e!s}"), None
         except Exception as e:
-            return action_result.set_status(phantom.APP_ERROR, f"Error making REST call: {e!s}"), None
+            ret_val, result = action_result.set_status(phantom.APP_ERROR, f"Error making REST call: {e!s}"), None
+
+        if return_status_code:
+            return ret_val, result, status_code
+        return ret_val, result
 
     def _make_rest_call_raw(self, endpoint, action_result, headers=None, params=None, method="get"):
         """Make a REST call that returns raw bytes (for EML, images)."""
@@ -149,7 +168,7 @@ class SublimeSecurityConnector(BaseConnector):
                 request_headers.update(headers)
 
             request_func = getattr(requests, method.lower())
-            response = request_func(url, headers=request_headers, params=params, verify=self._verify)
+            response = request_func(url, headers=request_headers, params=params, verify=self._verify, timeout=RAW_TIMEOUT)
 
             if 200 <= response.status_code < 300:
                 return phantom.APP_SUCCESS, response.content, response.headers.get("Content-Type", "")
@@ -157,23 +176,28 @@ class SublimeSecurityConnector(BaseConnector):
             error_message = f"Error from server. Status Code: {response.status_code}"
             return action_result.set_status(phantom.APP_ERROR, error_message), None, None
 
+        except requests.exceptions.Timeout as e:
+            return action_result.set_status(phantom.APP_ERROR, f"Request timed out: {e!s}"), None, None
         except Exception as e:
             return action_result.set_status(phantom.APP_ERROR, f"Error making REST call: {e!s}"), None, None
 
     def _save_to_vault(self, action_result, data_bytes, file_name, container_id=None):
-        """Save bytes to the SOAR vault. Returns vault_id or None."""
+        """Save bytes to the SOAR vault. Returns vault_id, or None on failure (action_result is updated with the error)."""
+        safe_name = os.path.basename(file_name or "")
+        safe_name = "".join(c for c in safe_name if c.isprintable()).strip() or "attachment"
         try:
             if container_id is None:
                 container_id = self.get_container_id()
             tmp_dir = Vault.get_vault_tmp_dir()
-            file_path = f"{tmp_dir}/{file_name}"
+            file_path = f"{tmp_dir}/{safe_name}"
             with open(file_path, "wb") as f:
                 f.write(data_bytes)
-            vault_ret = Vault.add_attachment(file_path, container_id, file_name=file_name)
+            vault_ret = Vault.add_attachment(file_path, container_id, file_name=safe_name)
             if vault_ret.get("succeeded"):
                 return vault_ret.get("vault_id", "")
+            action_result.set_status(phantom.APP_ERROR, f"Failed to save '{safe_name}' to vault: {vault_ret.get('message', 'unknown error')}")
         except Exception as e:
-            self.debug_print(f"Could not save to vault: {e!s}")
+            action_result.set_status(phantom.APP_ERROR, f"Failed to save '{safe_name}' to vault: {e!s}")
         return None
 
     def _iter_image_bytes(self, data):
@@ -261,7 +285,7 @@ class SublimeSecurityConnector(BaseConnector):
     def _handle_test_connectivity(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
         self.save_progress("Connecting to Sublime Security...")
-        ret_val, _ = self._make_rest_call(AUDIT_EVENT_TYPES_ENDPOINT, action_result)
+        ret_val, _ = self._make_rest_call(MAILBOXES_ENDPOINT, action_result)
         if phantom.is_fail(ret_val):
             self.save_progress(ERR_CONNECTIVITY_TEST)
             return action_result.get_status()
@@ -272,10 +296,17 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_upload_binary(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        ret_val, b64_data = self._get_file_as_base64(action_result, param)
+        ret_val, file_bytes = self._get_file_data(action_result, vault_id=param.get("vault_id"), base64_data=param.get("base64_data"))
         if phantom.is_fail(ret_val):
             return action_result.get_status()
 
+        if len(file_bytes) > BINEXPLODE_MAX_FILE_SIZE_BYTES:
+            return action_result.set_status(
+                phantom.APP_ERROR,
+                f"File size ({len(file_bytes)} bytes) exceeds the maximum allowed size of {BINEXPLODE_MAX_FILE_SIZE_BYTES} bytes",
+            )
+
+        b64_data = base64.b64encode(file_bytes).decode("utf-8")
         body = {"file_contents": b64_data, "file_name": param["file_name"]}
         ret_val, response = self._make_rest_call(BINEXPLODE_SCAN_ENDPOINT, action_result, json_data=body, method="post")
         if phantom.is_fail(ret_val):
@@ -287,7 +318,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_binexplode_results(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = BINEXPLODE_SCAN_RESULT_ENDPOINT.format(id=param["task_id"])
+        endpoint = BINEXPLODE_SCAN_RESULT_ENDPOINT.format(id=self._safe_id(param["task_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -340,8 +371,9 @@ class SublimeSecurityConnector(BaseConnector):
             screenshot_bytes = base64.b64decode(screenshot["raw"])
             file_name = screenshot.get("file_name", "link_analysis_screenshot.png")
             vault_id = self._save_to_vault(action_result, screenshot_bytes, file_name)
-            if vault_id:
-                action_result.update_summary({"screenshot_vault_id": vault_id})
+            if not vault_id:
+                return action_result.get_status()
+            action_result.update_summary({"screenshot_vault_id": vault_id})
 
         action_result.update_summary({"total_objects": 1, "total_objects_successful": 1})
         return action_result.set_status(phantom.APP_SUCCESS)
@@ -395,7 +427,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_audit_event(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = AUDIT_EVENT_ENDPOINT.format(id=param["event_id"])
+        endpoint = AUDIT_EVENT_ENDPOINT.format(id=self._safe_id(param["event_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -431,7 +463,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_hunt_job(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = HUNT_JOB_ENDPOINT.format(id=param["hunt_job_id"])
+        endpoint = HUNT_JOB_ENDPOINT.format(id=self._safe_id(param["hunt_job_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -442,7 +474,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_hunt_job_results(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = HUNT_JOB_RESULTS_ENDPOINT.format(id=param["hunt_job_id"])
+        endpoint = HUNT_JOB_RESULTS_ENDPOINT.format(id=self._safe_id(param["hunt_job_id"]))
         query_params = {
             "limit": self._clamp_limit(param.get("limit")),
             "offset": int(param.get("offset", 0)),
@@ -468,7 +500,9 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_list_lists(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        query_params = {"entry_type": "string"}
+        query_params = {}
+        if param.get("entry_type"):
+            query_params["entry_type"] = param["entry_type"]
         if param.get("name"):
             query_params["name"] = param["name"]
 
@@ -495,7 +529,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_delete_list(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = LIST_ENDPOINT.format(id=param["list_id"])
+        endpoint = LIST_ENDPOINT.format(id=self._safe_id(param["list_id"]))
         ret_val, _ = self._make_rest_call(endpoint, action_result, method="delete")
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -504,7 +538,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_list(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = LIST_ENDPOINT.format(id=param["list_id"])
+        endpoint = LIST_ENDPOINT.format(id=self._safe_id(param["list_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -515,7 +549,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_patch_list(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = LIST_ENDPOINT.format(id=param["list_id"])
+        endpoint = LIST_ENDPOINT.format(id=self._safe_id(param["list_id"]))
         body = {"description": param["description"]}
         ret_val, response = self._make_rest_call(endpoint, action_result, json_data=body, method="patch")
         if phantom.is_fail(ret_val):
@@ -527,7 +561,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_list_entries(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = LIST_ENTRIES_ENDPOINT.format(id=param["list_id"])
+        endpoint = LIST_ENTRIES_ENDPOINT.format(id=self._safe_id(param["list_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -538,28 +572,26 @@ class SublimeSecurityConnector(BaseConnector):
         action_result.update_summary({"total_entries": len(entries), "total_objects": len(entries), "total_objects_successful": len(entries)})
 
         if param.get("save_to_vault"):
-            try:
-                import csv as csv_mod
-                import io
+            import csv as csv_mod
+            import io
 
-                buf = io.StringIO()
-                writer = csv_mod.writer(buf)
-                writer.writerow(["entry"])
-                for e in entries:
-                    writer.writerow([e])
-                csv_bytes = buf.getvalue().encode("utf-8")
-                file_name = param.get("csv_file_name") or f"list_{param['list_id']}_entries.csv"
-                vault_id = self._save_to_vault(action_result, csv_bytes, file_name)
-                if vault_id:
-                    action_result.update_summary({"vault_id": vault_id})
-            except Exception as e:
-                self.debug_print(f"Could not save list entries CSV to vault: {e!s}")
+            buf = io.StringIO()
+            writer = csv_mod.writer(buf)
+            writer.writerow(["entry"])
+            for e in entries:
+                writer.writerow([e])
+            csv_bytes = buf.getvalue().encode("utf-8")
+            file_name = param.get("csv_file_name") or f"list_{param['list_id']}_entries.csv"
+            vault_id = self._save_to_vault(action_result, csv_bytes, file_name)
+            if not vault_id:
+                return action_result.get_status()
+            action_result.update_summary({"vault_id": vault_id})
 
         return action_result.set_status(phantom.APP_SUCCESS)
 
     def _handle_set_list_entries(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = LIST_ENTRIES_ENDPOINT.format(id=param["list_id"])
+        endpoint = LIST_ENTRIES_ENDPOINT.format(id=self._safe_id(param["list_id"]))
 
         entries = []
         vault_id = param.get("vault_id")
@@ -597,7 +629,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_delete_list_entry(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = LIST_ENTRY_ENDPOINT.format(id=param["list_id"])
+        endpoint = LIST_ENTRY_ENDPOINT.format(id=self._safe_id(param["list_id"]))
         query_params = {"string": param["entry"]}
         ret_val, _ = self._make_rest_call(endpoint, action_result, params=query_params, method="delete")
         if phantom.is_fail(ret_val):
@@ -607,7 +639,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_list_entry(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = LIST_ENTRY_ENDPOINT.format(id=param["list_id"])
+        endpoint = LIST_ENTRY_ENDPOINT.format(id=self._safe_id(param["list_id"]))
 
         raw = param["entry"]
         entries_to_check = self._parse_comma_list(raw) if "," in raw else [raw.strip()]
@@ -615,8 +647,13 @@ class SublimeSecurityConnector(BaseConnector):
         found_count = 0
         for entry in entries_to_check:
             scratch = ActionResult()
-            ret_val, _ = self._make_rest_call(endpoint, scratch, params={"string": entry})
-            found = phantom.is_success(ret_val)
+            ret_val, _, status_code = self._make_rest_call(endpoint, scratch, params={"string": entry}, return_status_code=True)
+            if phantom.is_success(ret_val):
+                found = True
+            elif status_code == 404:
+                found = False
+            else:
+                return action_result.set_status(phantom.APP_ERROR, f"Failed to check entry '{entry}': {scratch.get_message()}")
 
             action_result.add_data({"entry": entry, "found": found})
             if found:
@@ -634,7 +671,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_add_list_entry(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = LIST_ENTRY_ENDPOINT.format(id=param["list_id"])
+        endpoint = LIST_ENTRY_ENDPOINT.format(id=self._safe_id(param["list_id"]))
         body = {"string": param["entry"]}
         ret_val, _ = self._make_rest_call(endpoint, action_result, json_data=body, method="post")
         if phantom.is_fail(ret_val):
@@ -907,7 +944,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_message_group(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_GROUP_ENDPOINT.format(id=param["message_group_id"])
+        endpoint = MESSAGE_GROUP_ENDPOINT.format(id=self._safe_id(param["message_group_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -918,7 +955,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_dismiss_message_group(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_GROUP_DISMISS_ENDPOINT.format(id=param["message_group_id"])
+        endpoint = MESSAGE_GROUP_DISMISS_ENDPOINT.format(id=self._safe_id(param["message_group_id"]))
         body = self._build_single_review_body(param)
         ret_val, _ = self._make_rest_call(endpoint, action_result, json_data=body, method="post")
         if phantom.is_fail(ret_val):
@@ -928,7 +965,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_quarantine_message_group(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_GROUP_QUARANTINE_ENDPOINT.format(id=param["message_group_id"])
+        endpoint = MESSAGE_GROUP_QUARANTINE_ENDPOINT.format(id=self._safe_id(param["message_group_id"]))
         body = self._build_single_review_body(param)
         ret_val, response = self._make_rest_call(endpoint, action_result, json_data=body, method="post")
         if phantom.is_fail(ret_val):
@@ -940,7 +977,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_restore_message_group(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_GROUP_RESTORE_ENDPOINT.format(id=param["message_group_id"])
+        endpoint = MESSAGE_GROUP_RESTORE_ENDPOINT.format(id=self._safe_id(param["message_group_id"]))
         body = self._build_single_review_body(param)
         ret_val, response = self._make_rest_call(endpoint, action_result, json_data=body, method="post")
         if phantom.is_fail(ret_val):
@@ -952,7 +989,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_share_with_sublime(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_GROUP_SHARE_ENDPOINT.format(id=param["message_group_id"])
+        endpoint = MESSAGE_GROUP_SHARE_ENDPOINT.format(id=self._safe_id(param["message_group_id"]))
         body = {}
         if param.get("report_label"):
             body["report_label"] = param["report_label"]
@@ -969,7 +1006,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_trash_message_group(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_GROUP_TRASH_ENDPOINT.format(id=param["message_group_id"])
+        endpoint = MESSAGE_GROUP_TRASH_ENDPOINT.format(id=self._safe_id(param["message_group_id"]))
         body = self._build_single_review_body(param)
         ret_val, response = self._make_rest_call(endpoint, action_result, json_data=body, method="post")
         if phantom.is_fail(ret_val):
@@ -1026,8 +1063,9 @@ class SublimeSecurityConnector(BaseConnector):
         image_data = response.get("data")
         for idx, img_bytes in enumerate(self._iter_image_bytes(image_data)):
             vault_id = self._save_to_vault(action_result, img_bytes, f"attachment_render_{idx}.png")
-            if vault_id:
-                action_result.update_summary({"screenshot_vault_id": vault_id})
+            if not vault_id:
+                return action_result.get_status()
+            action_result.update_summary({"screenshot_vault_id": vault_id})
 
         action_result.update_summary({"total_objects": 1, "total_objects_successful": 1})
         return action_result.set_status(phantom.APP_SUCCESS)
@@ -1086,7 +1124,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_action_state(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_GROUP_ACTION_STATE_ENDPOINT.format(id=param["message_group_id"])
+        endpoint = MESSAGE_GROUP_ACTION_STATE_ENDPOINT.format(id=self._safe_id(param["message_group_id"]))
         query_params = {
             "limit": min(int(param.get("limit", 10)), 50),
             "offset": int(param.get("offset", 0)),
@@ -1103,7 +1141,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_message(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1114,7 +1152,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_action_message(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_ACTIONS_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_ACTIONS_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         body = {}
         if param.get("action"):
             body["action"] = param["action"]
@@ -1131,7 +1169,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_analyze_message_by_id(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_ANALYZE_BY_ID_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_ANALYZE_BY_ID_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         body = {}
         if param.get("run_active_detection_rules"):
             body["run_active_detection_rules"] = True
@@ -1154,7 +1192,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_asa_report(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_ASA_REPORT_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_ASA_REPORT_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1165,7 +1203,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_asa_verdict(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_ASA_VERDICT_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_ASA_VERDICT_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1176,7 +1214,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_attachment_image(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_ATTACHMENT_IMAGE_ENDPOINT.format(id=param["message_id"], hash=param["attachment_hash"])
+        endpoint = MESSAGE_ATTACHMENT_IMAGE_ENDPOINT.format(id=self._safe_id(param["message_id"]), hash=self._safe_id(param["attachment_hash"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1186,15 +1224,16 @@ class SublimeSecurityConnector(BaseConnector):
         image_data = response.get("data")
         for idx, img_bytes in enumerate(self._iter_image_bytes(image_data)):
             vault_id = self._save_to_vault(action_result, img_bytes, f"attachment_{param['attachment_hash']}_{idx}.png")
-            if vault_id:
-                action_result.update_summary({"screenshot_vault_id": vault_id})
+            if not vault_id:
+                return action_result.get_status()
+            action_result.update_summary({"screenshot_vault_id": vault_id})
 
         action_result.update_summary({"total_objects": 1, "total_objects_successful": 1})
         return action_result.set_status(phantom.APP_SUCCESS)
 
     def _handle_get_attack_score(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_ATTACK_SCORE_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_ATTACK_SCORE_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1207,7 +1246,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_message_image(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_IMAGE_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_IMAGE_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1219,29 +1258,31 @@ class SublimeSecurityConnector(BaseConnector):
         for idx, img_bytes in enumerate(self._iter_image_bytes(response.get("data"))):
             suffix = "" if idx == 0 else f"_{idx}"
             vault_id = self._save_to_vault(action_result, img_bytes, f"message_{param['message_id']}{suffix}.{ext}")
-            if vault_id:
-                action_result.update_summary({"screenshot_vault_id": vault_id})
+            if not vault_id:
+                return action_result.get_status()
+            action_result.update_summary({"screenshot_vault_id": vault_id})
 
         action_result.update_summary({"total_objects": 1, "total_objects_successful": 1})
         return action_result.set_status(phantom.APP_SUCCESS)
 
     def _handle_get_message_eml(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_EML_ENDPOINT.format(id=param["message_id"])
-        ret_val, raw_content, content_type = self._make_rest_call_raw(endpoint, action_result)
+        endpoint = MESSAGE_EML_ENDPOINT.format(id=self._safe_id(param["message_id"]))
+        ret_val, raw_content, _content_type = self._make_rest_call_raw(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
 
         vault_id = self._save_to_vault(action_result, raw_content, f"message_{param['message_id']}.eml")
-        if vault_id:
-            action_result.update_summary({"vault_id": vault_id})
+        if not vault_id:
+            return action_result.get_status()
+        action_result.update_summary({"vault_id": vault_id})
 
         action_result.update_summary({"total_objects": 1, "total_objects_successful": 1})
         return action_result.set_status(phantom.APP_SUCCESS)
 
     def _handle_get_message_image_link(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_IMAGE_LINK_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_IMAGE_LINK_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         query_params = {}
         if param.get("link_duration_seconds"):
             query_params["link_duration_seconds"] = int(param["link_duration_seconds"])
@@ -1258,7 +1299,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_set_access_justification(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_JUSTIFICATION_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_JUSTIFICATION_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         body = {"justification": param["justification"]}
         ret_val, _ = self._make_rest_call(endpoint, action_result, json_data=body, method="post")
         if phantom.is_fail(ret_val):
@@ -1268,7 +1309,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_message_data_model(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_MDM_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_MDM_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1279,7 +1320,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_restore_message(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_RESTORE_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_RESTORE_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result, method="post")
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1290,7 +1331,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_trash_message(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = MESSAGE_TRASH_ENDPOINT.format(id=param["message_id"])
+        endpoint = MESSAGE_TRASH_ENDPOINT.format(id=self._safe_id(param["message_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result, method="post")
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1415,7 +1456,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_delete_rule(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = RULE_ENDPOINT.format(id=param["rule_id"])
+        endpoint = RULE_ENDPOINT.format(id=self._safe_id(param["rule_id"]))
         ret_val, _ = self._make_rest_call(endpoint, action_result, method="delete")
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1424,7 +1465,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_rule(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = RULE_ENDPOINT.format(id=param["rule_id"])
+        endpoint = RULE_ENDPOINT.format(id=self._safe_id(param["rule_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1435,7 +1476,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_update_rule(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = RULE_ENDPOINT.format(id=param["rule_id"])
+        endpoint = RULE_ENDPOINT.format(id=self._safe_id(param["rule_id"]))
         body = {}
         for key in ("name", "source", "severity", "description", "label", "maturity", "auto_review_classification"):
             if param.get(key):
@@ -1483,7 +1524,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_activate_rule(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = RULE_ACTIVATE_ENDPOINT.format(id=param["rule_id"])
+        endpoint = RULE_ACTIVATE_ENDPOINT.format(id=self._safe_id(param["rule_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result, method="post")
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1494,7 +1535,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_deactivate_rule(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = RULE_DEACTIVATE_ENDPOINT.format(id=param["rule_id"])
+        endpoint = RULE_DEACTIVATE_ENDPOINT.format(id=self._safe_id(param["rule_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result, method="post")
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1505,7 +1546,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_rule_history(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = RULE_HISTORY_ENDPOINT.format(id=param["rule_id"])
+        endpoint = RULE_HISTORY_ENDPOINT.format(id=self._safe_id(param["rule_id"]))
         query_params = {}
         if param.get("start_time"):
             query_params["classification_created_at[gte]"] = param["start_time"]
@@ -1526,7 +1567,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_task(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = TASK_ENDPOINT.format(id=param["task_id"])
+        endpoint = TASK_ENDPOINT.format(id=self._safe_id(param["task_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1588,7 +1629,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_scim_resource_type(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = SCIM_RESOURCE_TYPE_ENDPOINT.format(id=param["resource_type_id"])
+        endpoint = SCIM_RESOURCE_TYPE_ENDPOINT.format(id=self._safe_id(param["resource_type_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1600,7 +1641,7 @@ class SublimeSecurityConnector(BaseConnector):
     def _handle_list_scim_users(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
         query_params = {
-            "count": min(int(param.get("count", 100)), SCIM_MAX_COUNT),
+            "count": min(int(param.get("count", SCIM_DEFAULT_COUNT)), SCIM_MAX_COUNT),
             "startIndex": max(int(param.get("start_index", 1)), 1),
         }
         if param.get("filter"):
@@ -1637,7 +1678,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_scim_user(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = SCIM_USER_ENDPOINT.format(id=param["user_id"])
+        endpoint = SCIM_USER_ENDPOINT.format(id=self._safe_id(param["user_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1648,7 +1689,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_delete_scim_user(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = SCIM_USER_ENDPOINT.format(id=param["user_id"])
+        endpoint = SCIM_USER_ENDPOINT.format(id=self._safe_id(param["user_id"]))
         ret_val, _ = self._make_rest_call(endpoint, action_result, method="delete")
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1657,7 +1698,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_update_scim_user(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = SCIM_USER_ENDPOINT.format(id=param["user_id"])
+        endpoint = SCIM_USER_ENDPOINT.format(id=self._safe_id(param["user_id"]))
         body = {
             "userName": param["user_name"],
             "name": {"givenName": param["given_name"], "familyName": param["family_name"]},
@@ -1675,7 +1716,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_patch_scim_user(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = SCIM_USER_ENDPOINT.format(id=param["user_id"])
+        endpoint = SCIM_USER_ENDPOINT.format(id=self._safe_id(param["user_id"]))
         try:
             operations = json.loads(param["operations_json"])
         except (json.JSONDecodeError, TypeError) as e:
@@ -1717,7 +1758,7 @@ class SublimeSecurityConnector(BaseConnector):
 
     def _handle_get_scim_schema(self, param):
         action_result = self.add_action_result(ActionResult(dict(param)))
-        endpoint = SCIM_SCHEMA_ENDPOINT.format(id=param["schema_id"])
+        endpoint = SCIM_SCHEMA_ENDPOINT.format(id=self._safe_id(param["schema_id"]))
         ret_val, response = self._make_rest_call(endpoint, action_result)
         if phantom.is_fail(ret_val):
             return action_result.get_status()
@@ -1981,12 +2022,10 @@ def _verify_sublime_signature(header_value, raw_body_bytes, signing_secret, tole
                 return True, "ok"
 
     body_sha = hashlib.sha256(raw_body_bytes).hexdigest()
-    head_hex = raw_body_bytes[:32].hex()
-    tail_hex = raw_body_bytes[-32:].hex() if len(raw_body_bytes) >= 32 else raw_body_bytes.hex()
     logger.warning(
         "Sublime webhook: signature mismatch. "
         f"timestamp={timestamp} body_bytes={len(raw_body_bytes)} "
-        f"body_sha256={body_sha} body_head_hex={head_hex} body_tail_hex={tail_hex} "
+        f"body_sha256={body_sha} "
         f"received={[s[:8] + '...' for s in signatures]} "
         f"computed={[e[:8] + '...' for e in tried]} "
         f"candidate_count={len(tried)}"
@@ -2073,7 +2112,7 @@ def _create_error_container(
             headers=soar_headers,
             json=container,
             verify=False,
-            timeout=30,
+            timeout=10,
         )
         c_json = c_resp.json() if c_resp.content else {}
         container_id = c_json.get("id")
@@ -2106,7 +2145,7 @@ def _create_error_container(
                 "metadata": {"contains": ["vault id"]},
             },
             verify=False,
-            timeout=30,
+            timeout=10,
         )
     except Exception as e:
         logger.warning(f"Sublime webhook: error debug attachment exception: {e!s}")
@@ -2336,9 +2375,8 @@ def handle_request(request, path_parts):
     import logging
 
     try:
-        from django.http import HttpResponse, JsonResponse
+        from django.http import JsonResponse
     except ImportError:  # pragma: no cover
-        HttpResponse = None
         JsonResponse = None
 
     try:
@@ -2381,8 +2419,9 @@ def handle_request(request, path_parts):
     sublime_verify_cert = True
     sdi_strategy = "canonical_id"
     asset_id = None
+    asset_name = path_parts[0] if path_parts else None
+    asset_lookup_failed = False
     try:
-        asset_name = path_parts[0] if path_parts else None
         if asset_name:
             asset_resp = requests.get(
                 f"{rest_base_url}asset",
@@ -2399,6 +2438,10 @@ def handle_request(request, path_parts):
                     asset_record = data[0] or {}
                     asset_cfg = asset_record.get("configuration") or {}
                     asset_id = asset_record.get("id")
+                else:
+                    asset_lookup_failed = True
+            else:
+                asset_lookup_failed = True
             if isinstance(asset_cfg, dict):
                 cfg_label = asset_cfg.get("webhook_container_label") or cfg_label
                 cfg_severity = asset_cfg.get("webhook_container_severity") or cfg_severity
@@ -2420,6 +2463,14 @@ def handle_request(request, path_parts):
                 sdi_strategy = (asset_cfg.get("webhook_container_sdi_strategy") or "canonical_id").lower()
     except Exception as e:
         logger.warning(f"Sublime webhook: failed to load asset config: {e!s}")
+        if asset_name:
+            asset_lookup_failed = True
+
+    # If the request identified a specific asset but we couldn't resolve its configuration
+    # (and therefore its signing secret), fail closed rather than silently processing the
+    # request as if it were unsigned/unverified.
+    if asset_name and asset_lookup_failed:
+        return _respond(500, {"error": "Failed to resolve asset configuration for signature verification"})
 
     if request.method != "POST":
         return _respond(405, {"error": "Method Not Allowed. Use POST."})
@@ -2576,7 +2627,7 @@ def handle_request(request, path_parts):
                 headers=soar_headers,
                 json=container,
                 verify=False,
-                timeout=30,
+                timeout=10,
             )
             c_json = c_resp.json() if c_resp.content else {}
             container_id = c_json.get("id")
@@ -2674,7 +2725,7 @@ def handle_request(request, path_parts):
                 headers=soar_headers,
                 json=artifact,
                 verify=False,
-                timeout=30,
+                timeout=10,
             )
             a_json = a_resp.json() if a_resp.content else {}
             if a_resp.status_code not in (200, 201) or not a_json.get("id"):
@@ -2713,7 +2764,7 @@ def handle_request(request, path_parts):
         eml_vault_id = None
         if fetch_eml and sublime_base_url and sublime_api_key and message_id and message_id != "unknown":
             try:
-                eml_url = f"{sublime_base_url}/v0/messages/{message_id}/eml"
+                eml_url = f"{sublime_base_url}/v0/messages/{urllib.parse.quote(str(message_id), safe='')}/eml"
                 eml_resp = requests.get(
                     eml_url,
                     headers={"Authorization": f"Bearer {sublime_api_key}", "Accept": "*/*"},
@@ -2760,7 +2811,7 @@ def handle_request(request, path_parts):
                                     "run_automation": False,
                                 },
                                 verify=False,
-                                timeout=30,
+                                timeout=10,
                             )
                     else:
                         logger.warning(
