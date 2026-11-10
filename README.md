@@ -52,13 +52,13 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 [add list entry](#action-add-list-entry) - Add a single entry to a list <br>
 [process raw message](#action-process-raw-message) - Process a raw EML message through Sublime Security live flow <br>
 [list mailboxes](#action-list-mailboxes) - List connected mailboxes <br>
-[list message groups](#action-list-message-groups) - List message groups with optional filters <br>
+[list message groups](#action-list-message-groups) - List message groups. With no canonical id, defaults to flagged groups from the last 7 days <br>
 [dismiss message groups](#action-dismiss-message-groups) - Dismiss multiple message groups <br>
 [quarantine message groups](#action-quarantine-message-groups) - Quarantine multiple message groups <br>
 [graymail message groups](#action-graymail-message-groups) - Move multiple message groups to graymail <br>
 [restore message groups](#action-restore-message-groups) - Restore multiple message groups <br>
 [review message groups](#action-review-message-groups) - Review message groups with classification and optional action <br>
-[search message groups](#action-search-message-groups) - Search message groups across multiple fields <br>
+[search message groups](#action-search-message-groups) - Search message groups. At least one search field, state, hash, or time bound is required <br>
 [trash message groups](#action-trash-message-groups) - Trash multiple message groups <br>
 [get message group](#action-get-message-group) - Get a single message group by canonical ID <br>
 [dismiss message group](#action-dismiss-message-group) - Dismiss a single message group <br>
@@ -66,14 +66,14 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 [restore message group](#action-restore-message-group) - Restore a single message group <br>
 [share with sublime](#action-share-with-sublime) - Share a message group with Sublime for community detection <br>
 [trash message group](#action-trash-message-group) - Trash a single message group <br>
-[analyze raw message](#action-analyze-raw-message) - Analyze a raw EML message against rules and queries <br>
+[analyze raw message](#action-analyze-raw-message) - Analyze a raw EML message against rules and queries. Runs active detection rules when no run flag is set <br>
 [render attachment image](#action-render-attachment-image) - Render image for attachment from raw base64 encoded bytes <br>
 [get attack score raw](#action-get-attack-score-raw) - Evaluate attack score for a raw message <br>
 [create message](#action-create-message) - Create a new message from a raw EML <br>
 [get action state](#action-get-action-state) - Retrieve the state of manual actions for a canonical group <br>
 [get message](#action-get-message) - Retrieve a message by ID <br>
 [action message](#action-action-message) - Perform an action on an individual message <br>
-[analyze message by id](#action-analyze-message-by-id) - Analyze an existing message by its ID against rules and queries <br>
+[analyze message by id](#action-analyze-message-by-id) - Analyze an existing message by its ID against rules and queries. Runs active detection rules when no run flag is set <br>
 [get asa report](#action-get-asa-report) - Retrieve ASA (Attack Surface Assessment) report for a message <br>
 [get asa verdict](#action-get-asa-verdict) - Retrieve ASA verdict for a message (malicious, spam, graymail, likely_benign, benign, unknown) <br>
 [get attachment image](#action-get-attachment-image) - Retrieve image of a PDF attachment by MD5 hash <br>
@@ -91,12 +91,12 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 [validate rule](#action-validate-rule) - Validate rule MQL syntax without creating <br>
 [delete rule](#action-delete-rule) - Delete a rule by ID <br>
 [get rule](#action-get-rule) - Retrieve a rule by ID <br>
-[update rule](#action-update-rule) - Update an existing rule <br>
+[update rule](#action-update-rule) - Update an existing rule. Omitted fields are kept from the current rule <br>
 [activate rule](#action-activate-rule) - Activate a rule <br>
 [deactivate rule](#action-deactivate-rule) - Deactivate a rule <br>
 [get rule history](#action-get-rule-history) - Retrieve history of a specific rule <br>
 [get task](#action-get-task) - Retrieve task status by ID <br>
-[list user reports](#action-list-user-reports) - List user-submitted phishing reports <br>
+[list user reports](#action-list-user-reports) - List user-submitted phishing reports. Defaults to the last 30 days when no time bound is set <br>
 [assign role](#action-assign-role) - Assign a role to a user <br>
 [list scim resource types](#action-list-scim-resource-types) - List SCIM resource types <br>
 [get scim resource type](#action-get-scim-resource-type) - Get a single SCIM resource type <br>
@@ -814,7 +814,7 @@ summary.total_objects | numeric | | |
 
 ## action: 'list message groups'
 
-List message groups with optional filters
+List message groups. With no canonical id, defaults to flagged groups from the last 7 days
 
 Type: **investigate** <br>
 Read only: **True**
@@ -823,9 +823,9 @@ Read only: **True**
 
 PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 --------- | -------- | ----------- | ---- | --------
-**start_time** | optional | Start time filter (ISO 8601 UTC), maps to created_at\_\_gte | string | |
+**start_time** | optional | Start time filter (ISO 8601 UTC), maps to created_at\_\_gte. Defaults to the last 7 days when no canonical id or report-time bound is set | string | |
 **end_time** | optional | End time filter (ISO 8601 UTC), maps to created_at\_\_lt | string | |
-**flagged** | optional | Filter by flagged status | boolean | |
+**flagged** | optional | Filter by flagged status. Defaults to true when no canonical id is set and user_reported is not true | boolean | |
 **reviewed** | optional | Filter by reviewed status | boolean | |
 **user_reported** | optional | Filter to groups with at least one reported message | boolean | |
 **attack_surface_reduction** | optional | Filter to groups with flagged 'Attack surface reduction' tag | boolean | |
@@ -1049,7 +1049,7 @@ summary.total_objects | numeric | | |
 
 ## action: 'search message groups'
 
-Search message groups across multiple fields
+Search message groups. At least one search field, state, hash, or time bound is required
 
 Type: **investigate** <br>
 Read only: **True**
@@ -1316,7 +1316,7 @@ summary.total_objects | numeric | | |
 
 ## action: 'analyze raw message'
 
-Analyze a raw EML message against rules and queries
+Analyze a raw EML message against rules and queries. Runs active detection rules when no run flag is set
 
 Type: **investigate** <br>
 Read only: **True**
@@ -1327,7 +1327,7 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 --------- | -------- | ----------- | ---- | --------
 **vault_id** | optional | Vault ID of the EML file | string | `vault id` |
 **base64_data** | optional | Base64 encoded EML (alternative to vault_id) | string | |
-**run_active_detection_rules** | optional | Run all active detection rules | boolean | |
+**run_active_detection_rules** | optional | Run all active detection rules. Used when no other run flag is set | boolean | |
 **run_all_detection_rules** | optional | Run all detection rules including inactive | boolean | |
 **run_all_insights** | optional | Run all insight queries | boolean | |
 
@@ -1362,7 +1362,7 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 --------- | -------- | ----------- | ---- | --------
 **vault_id** | optional | Vault ID of the attachment file | string | `vault id` |
 **base64_data** | optional | Base64 encoded raw attachment bytes (alternative to vault_id) | string | |
-**file_type** | optional | File type hint for rendering | string | |
+**file_type** | optional | File type hint for rendering, such as pdf. Image types such as png are rejected | string | |
 
 #### Action Output
 
@@ -1552,7 +1552,7 @@ summary.total_objects | numeric | | |
 
 ## action: 'analyze message by id'
 
-Analyze an existing message by its ID against rules and queries
+Analyze an existing message by its ID against rules and queries. Runs active detection rules when no run flag is set
 
 Type: **investigate** <br>
 Read only: **True**
@@ -1562,7 +1562,7 @@ Read only: **True**
 PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 --------- | -------- | ----------- | ---- | --------
 **message_id** | required | UUID of the message | string | `message id` |
-**run_active_detection_rules** | optional | Run all active detection rules | boolean | |
+**run_active_detection_rules** | optional | Run all active detection rules. Used when no other run flag is set | boolean | |
 **run_all_detection_rules** | optional | Run all detection rules including inactive | boolean | |
 **run_all_insights** | optional | Run all insight queries | boolean | |
 
@@ -2108,7 +2108,7 @@ summary.total_objects | numeric | | |
 
 ## action: 'update rule'
 
-Update an existing rule
+Update an existing rule. Omitted fields are kept from the current rule
 
 Type: **generic** <br>
 Read only: **False**
@@ -2291,7 +2291,7 @@ summary.total_objects | numeric | | |
 
 ## action: 'list user reports'
 
-List user-submitted phishing reports
+List user-submitted phishing reports. Defaults to the last 30 days when no time bound is set
 
 Type: **investigate** <br>
 Read only: **True**
@@ -2300,7 +2300,7 @@ Read only: **True**
 
 PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 --------- | -------- | ----------- | ---- | --------
-**start_time** | optional | Start time filter (ISO 8601 UTC) | string | |
+**start_time** | optional | Start time filter (ISO 8601 UTC). Defaults to the last 30 days when end_time is also empty | string | |
 **end_time** | optional | End time filter (ISO 8601 UTC) | string | |
 **limit** | optional | Maximum number of results (max: 500) | numeric | |
 

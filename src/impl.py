@@ -21,6 +21,7 @@ import base64
 import csv as csv_mod
 import io
 import json
+from datetime import datetime, timedelta, UTC
 from typing import Any
 
 from soar_sdk.abstract import SOARClient
@@ -65,6 +66,62 @@ def _summary(soar: SOARClient, summary_cls: type[ActionOutput] | None, data: dic
     if summary_cls is None:
         return
     soar.set_summary(coerce_output(summary_cls, data))
+
+
+def _iso_days_ago(days: int) -> str:
+    moment = datetime.now(UTC) - timedelta(days=days)
+    return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _join_values(value: Any) -> str:
+    """Flatten a Sublime bounded-values object or list into a comma-separated string."""
+    if isinstance(value, dict):
+        values = value.get("values")
+        if isinstance(values, list):
+            return ", ".join(str(item) for item in values if item is not None)
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value if item is not None)
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _analysis_flags(params: Any) -> dict[str, bool]:
+    body: dict[str, bool] = {}
+    for key in ("run_active_detection_rules", "run_all_detection_rules", "run_all_insights"):
+        if _pget(params, key):
+            body[key] = True
+    if not body:
+        body["run_active_detection_rules"] = True
+    return body
+
+
+_RULE_MUTABLE_FIELDS = (
+    "name",
+    "source",
+    "type",
+    "severity",
+    "description",
+    "label",
+    "maturity",
+    "active",
+    "tags",
+    "user_provided_tags",
+    "attack_types",
+    "detection_methods",
+    "tactics_and_techniques",
+    "false_positives",
+    "references",
+    "action_ids",
+    "authors",
+    "auto_review_classification",
+    "auto_review_auto_share",
+    "triage_abuse_reports",
+    "triage_flagged_messages",
+    "triage_classification_changes",
+    "triage_dlp_rule_matched",
+    "run_triage_on_excluded_messages",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -446,9 +503,21 @@ def list_message_groups(
         query["created_at__lt"] = params.end_time
     if _pget(params, "first_message_reported_at_gte"):
         query["first_message_reported_at__gte"] = params.first_message_reported_at_gte
+    # The API rejects a list that has neither a lower time bound nor a canonical id,
+    # and it also requires flagged or user_reported unless a canonical id is set.
+    has_canonical = bool(_pget(params, "canonical_id"))
+    notes: list[str] = []
+    if not has_canonical and "created_at__gte" not in query and "first_message_reported_at__gte" not in query:
+        query["created_at__gte"] = _iso_days_ago(7)
+        notes.append("no time bound was provided, so the last 7 days are used")
     for key in ("flagged", "reviewed", "user_reported"):
         if _pget(params, key) is not None:
             query[key] = getattr(params, key)
+    if not has_canonical and query.get("flagged") is not True and query.get("user_reported") is not True:
+        query["flagged"] = True
+        notes.append("flagged defaulted to true")
+    if notes:
+        soar.set_message("; ".join(notes))
     if _pget(params, "attack_surface_reduction") is not None:
         query["attack_surface_reduction__filter"] = params.attack_surface_reduction
     array_filter_map = {
@@ -541,6 +610,29 @@ def review_message_groups(
 def search_message_groups(
     params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
 ) -> list[ActionOutput]:
+    search_fields = (
+        "any",
+        "sender",
+        "to",
+        "mailbox",
+        "subject",
+        "message_id",
+        "type",
+        "states",
+        "file_name",
+        "attachment_md5",
+        "attachment_sha1",
+        "attachment_sha256",
+        "start_time",
+        "end_time",
+        "first_reported_as_phish_at_gte",
+        "first_reported_as_phish_at_lt",
+    )
+    if not any(_pget(params, name) for name in search_fields):
+        raise ActionFailure(
+            "Provide at least one search term, state, attachment hash, or time bound. "
+            "The any field searches every field and cannot be combined with other search fields."
+        )
     query: dict[str, Any] = {
         "limit": clamp_limit(_pget(params, "limit")),
         "offset": int(_pget(params, "offset") or 0),
@@ -591,23 +683,67 @@ def get_message_group(
 
 
 def get_message_groups_siem_summary(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+    params: Any,
+    soar: SOARClient,
+    asset: Any,
+    output_cls: type[ActionOutput],
+    summary_cls: type[ActionOutput] | None = None,
 ) -> list[ActionOutput]:
+    # This endpoint pages with an opaque cursor and filters on timestamp__gte / timestamp__lt.
     query: dict[str, Any] = {
-        "limit": clamp_limit(_pget(params, "limit")),
-        "offset": int(_pget(params, "offset") or 0),
+        "limit": min(int(_pget(params, "limit") or consts.DEFAULT_LIMIT), 1000),
+        "type": _pget(params, "siem_type") or "flagged",
     }
+    if _pget(params, "cursor"):
+        query["cursor"] = params.cursor
     if _pget(params, "created_at_gte"):
-        query["created_at__gte"] = params.created_at_gte
+        query["timestamp__gte"] = params.created_at_gte
     if _pget(params, "created_at_lt"):
-        query["created_at__lt"] = params.created_at_lt
+        query["timestamp__lt"] = params.created_at_lt
     response = _client(asset).get(
         consts.MESSAGE_GROUPS_SIEM_SUMMARY_ENDPOINT, params=query
     )
     groups = response.get("message_groups") or response.get("groups") or []
     if isinstance(response, list):
         groups = response
-    return coerce_many(output_cls, groups)
+        response = {}
+    normalized = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        normalized.append(
+            {
+                "id": group.get("id") or "",
+                "classification": group.get("classification") or "",
+                "state": group.get("state") or "",
+                "first_seen": group.get("first_seen") or "",
+                "last_seen": group.get("last_seen") or "",
+                "first_reported_as_phish_at": group.get("first_reported_as_phish_at") or "",
+                "message_count": group.get("message_count") or 0,
+                "recipient_count": group.get("recipient_count") or 0,
+                "attack_score_verdict": group.get("attack_score_verdict") or "",
+                "detection_rule_names": _join_values(group.get("detection_rule_names")),
+                "senders": _join_values(group.get("senders")),
+                "sender_domains": _join_values(group.get("sender_domains")),
+                "subjects": _join_values(group.get("subjects")),
+                "recipients": _join_values(group.get("recipients")),
+                "source_ips": _join_values(group.get("source_ips")),
+                "attachment_names": _join_values(group.get("attachment_names")),
+                "attachment_hashes": _join_values(group.get("attachment_hashes")),
+            }
+        )
+    total = response.get("total")
+    total_count = total.get("count") if isinstance(total, dict) else total
+    _summary(
+        soar,
+        summary_cls,
+        {
+            "cursor": response.get("cursor") or "",
+            "total": float(total_count or 0),
+            "truncated": bool(response.get("truncated")),
+        },
+    )
+    return coerce_many(output_cls, normalized)
 
 
 def dismiss_message_group(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
@@ -682,9 +818,10 @@ def analyze_raw_message(
         soar, vault_id=_pget(params, "vault_id"), base64_data=_pget(params, "base64_data")
     )
     body: dict[str, Any] = {"raw_message": b64_data}
-    for key in ("run_active_detection_rules", "run_all_detection_rules", "run_all_insights"):
-        if _pget(params, key):
-            body[key] = True
+    flags = _analysis_flags(params)
+    if flags == {"run_active_detection_rules": True} and not _pget(params, "run_active_detection_rules"):
+        soar.set_message("No analysis flag was set; running active detection rules")
+    body.update(flags)
     return coerce_output(
         output_cls, _client(asset).post(consts.MESSAGES_ANALYZE_ENDPOINT, json_data=body)
     )
@@ -792,10 +929,9 @@ def analyze_message_by_id(
     params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
 ) -> ActionOutput:
     endpoint = consts.MESSAGE_ANALYZE_BY_ID_ENDPOINT.format(id=safe_id(params.message_id))
-    body: dict[str, Any] = {}
-    for key in ("run_active_detection_rules", "run_all_detection_rules", "run_all_insights"):
-        if _pget(params, key):
-            body[key] = True
+    body = _analysis_flags(params)
+    if body == {"run_active_detection_rules": True} and not _pget(params, "run_active_detection_rules"):
+        soar.set_message("No analysis flag was set; running active detection rules")
     return coerce_output(output_cls, _client(asset).post(endpoint, json_data=body))
 
 
@@ -1053,8 +1189,21 @@ def update_rule(
     params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
 ) -> ActionOutput:
     endpoint = consts.RULE_ENDPOINT.format(id=safe_id(params.rule_id))
-    body = _rule_body_from_params(params)
-    return coerce_output(output_cls, _client(asset).put(endpoint, json_data=body))
+    client = _client(asset)
+    current = client.get(endpoint)
+    if not isinstance(current, dict):
+        raise ActionFailure("Rule lookup did not return a rule object")
+    # PUT replaces the rule. Start from the current rule so omitted fields are kept.
+    body: dict[str, Any] = {}
+    for key in _RULE_MUTABLE_FIELDS:
+        if key in current and current[key] is not None:
+            body[key] = current[key]
+    body.update(_rule_body_from_params(params))
+    if not body.get("name"):
+        raise ActionFailure("Rule is missing a name and none was provided")
+    if not body.get("source"):
+        raise ActionFailure("Rule is missing MQL source and none was provided")
+    return coerce_output(output_cls, client.put(endpoint, json_data=body))
 
 
 def activate_rule(
@@ -1105,6 +1254,9 @@ def list_user_reports(
     query: dict[str, Any] = {}
     if _pget(params, "start_time"):
         query["reported_at[gte]"] = params.start_time
+    elif not _pget(params, "end_time"):
+        query["reported_at[gte]"] = _iso_days_ago(30)
+        soar.set_message("No time bound was provided, so reports from the last 30 days are returned")
     if _pget(params, "end_time"):
         query["reported_at[lt]"] = params.end_time
     if _pget(params, "limit"):
@@ -1400,9 +1552,15 @@ def list_dlp_release_requests(
     if _pget(params, "status"):
         query["status"] = params.status
     response = _client(asset).get(consts.DLP_RELEASE_REQUESTS_ENDPOINT, params=query)
-    items = response.get("release_requests") or response.get("requests") or []
     if isinstance(response, list):
         items = response
+    else:
+        items = []
+        for key in ("release_requests", "requests", "results"):
+            candidate = response.get(key)
+            if isinstance(candidate, list):
+                items = candidate
+                break
     return coerce_many(output_cls, items)
 
 

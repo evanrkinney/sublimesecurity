@@ -28,6 +28,24 @@ from .consts import BASE_URLS, DEFAULT_TIMEOUT, RAW_TIMEOUT
 logger = getLogger()
 
 
+def format_server_error(status_code: int, payload: Any) -> str:
+    """Turn a Sublime error body into a single action message.
+
+    The API returns ``{"error": {"type": "...", "message": "..."}}``. Surface the
+    message text instead of the raw object.
+    """
+    detail = "Unknown error"
+    if isinstance(payload, dict):
+        err = payload.get("error", payload.get("message"))
+        if isinstance(err, dict):
+            detail = str(err.get("message") or err.get("type") or err)
+        elif err:
+            detail = str(err)
+    elif isinstance(payload, str) and payload:
+        detail = payload[:200]
+    return f"Error from server. Status Code: {status_code}. Error: {detail}"
+
+
 class SublimeClient:
     """Thin requests wrapper with auth, timeouts, and ActionFailure mapping."""
 
@@ -136,24 +154,18 @@ class SublimeClient:
                         result = response.text
                 return (result, status_code) if return_status_code else result
 
-            error_message = f"Error from server. Status Code: {response.status_code}"
             if response.text:
                 try:
-                    resp_json = response.json()
-                    server_error = resp_json.get(
-                        "error", resp_json.get("message", "Unknown error")
-                    )
-                    error_message = (
-                        f"Error from server. Status Code: {response.status_code}. "
-                        f"Error: {server_error}"
+                    error_message = format_server_error(
+                        response.status_code, response.json()
                     )
                 except ValueError:
                     # Avoid dumping large/unknown bodies into action messages
-                    snippet = response.text[:200]
-                    error_message = (
-                        f"Error from server. Status Code: {response.status_code}. "
-                        f"Error: {snippet}"
+                    error_message = format_server_error(
+                        response.status_code, response.text[:200]
                     )
+            else:
+                error_message = format_server_error(response.status_code, {})
             if return_status_code:
                 return (None, status_code)
             raise ActionFailure(error_message)

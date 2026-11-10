@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
 import os
 import time
 import urllib.parse
@@ -234,6 +235,24 @@ def _default_for_annotation(annotation: Any) -> Any:
     return None
 
 
+def _is_string_annotation(annotation: Any) -> bool:
+    if annotation is str:
+        return True
+    args = [a for a in getattr(annotation, "__args__", ()) if a is not type(None)]
+    return args == [str]
+
+
+def _as_output_string(value: Any) -> str:
+    """Fit lists and objects into ActionOutput string fields without dropping them."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, dict)):
+        return json.dumps(value, default=str)
+    return str(value)
+
+
 def coerce_output(model_cls: type[T], data: Any) -> T:
     """Coerce a loosely-shaped API dict into an ActionOutput / BaseModel.
 
@@ -284,6 +303,11 @@ def coerce_output(model_cls: type[T], data: Any) -> T:
             nested_cls = args[0]
         if nested_cls is not None and isinstance(value, dict):
             payload[key] = coerce_output(nested_cls, value)
+            continue
+        if _is_string_annotation(annotation) and isinstance(value, (list, dict)):
+            payload[key] = _as_output_string(value)
+        elif annotation is str and value is None:
+            payload[key] = ""
 
     try:
         return model_cls.model_validate(payload)
