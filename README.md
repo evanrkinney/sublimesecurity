@@ -1,10 +1,12 @@
 # Sublime Security
 
+Built with the [Splunk SOAR SDK](https://phantomcyber.github.io/splunk-soar-sdk/api_reference.html).
+
 Publisher: Splunk SOAR Community <br>
-Connector Version: 1.0.0 <br>
+Connector Version: 1.1.0 <br>
 Product Vendor: Sublime Security <br>
 Product Name: Sublime Platform <br>
-Minimum Product Version: 6.3.0
+Minimum Product Version: 6.4.0
 
 Integrates with the Sublime Security Platform API to perform email security operations including binexplode analysis, link analysis, audit log management, hunt jobs, list management, message group actions, message analysis, rule management, SCIM user provisioning, and more
 

@@ -94,6 +94,16 @@ TASK_ENDPOINT = "/v0/tasks/{id}"
 # User Reports
 USER_REPORTS_ENDPOINT = "/v0/user-reports"
 
+# Organizations (multi-tenancy)
+CHILD_ORGANIZATIONS_ENDPOINT = "/v0/organizations/mine/child-organizations"
+CHILD_ORGANIZATIONS_BULK_LICENSING_ENDPOINT = (
+    "/v0/organizations/mine/child-organizations/bulk-licensing"
+)
+CHILD_ORGANIZATION_ENDPOINT = "/v0/organizations/mine/child-organizations/{id}"
+CHILD_ORGANIZATION_LICENSING_ENDPOINT = (
+    "/v0/organizations/mine/child-organizations/{id}/licensing"
+)
+
 # Users/Roles
 ASSIGN_ROLE_ENDPOINT = "/v0/roles/assign"
 
