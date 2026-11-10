@@ -244,9 +244,8 @@ def get_hunt_job_results(
 def list_lists(
     params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
 ) -> list[ActionOutput]:
-    query: dict[str, Any] = {}
-    if _pget(params, "entry_type"):
-        query["entry_type"] = params.entry_type
+    # API requires entry_type; default to string while still allowing other enum values.
+    query: dict[str, Any] = {"entry_type": _pget(params, "entry_type") or "string"}
     if _pget(params, "name"):
         query["name"] = params.name
     response = _client(asset).get(consts.LISTS_ENDPOINT, params=query)
@@ -504,6 +503,15 @@ def graymail_message_groups(
     return coerce_output(output_cls, response)
 
 
+def spam_message_groups(
+    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+) -> ActionOutput:
+    response = _client(asset).post(
+        consts.MESSAGE_GROUPS_SPAM_ENDPOINT, json_data=build_review_body(params)
+    )
+    return coerce_output(output_cls, response)
+
+
 def restore_message_groups(
     params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
 ) -> ActionOutput:
@@ -580,6 +588,26 @@ def get_message_group(
 ) -> ActionOutput:
     endpoint = consts.MESSAGE_GROUP_ENDPOINT.format(id=safe_id(params.message_group_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
+
+
+def get_message_groups_siem_summary(
+    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+) -> list[ActionOutput]:
+    query: dict[str, Any] = {
+        "limit": clamp_limit(_pget(params, "limit")),
+        "offset": int(_pget(params, "offset") or 0),
+    }
+    if _pget(params, "created_at_gte"):
+        query["created_at__gte"] = params.created_at_gte
+    if _pget(params, "created_at_lt"):
+        query["created_at__lt"] = params.created_at_lt
+    response = _client(asset).get(
+        consts.MESSAGE_GROUPS_SIEM_SUMMARY_ENDPOINT, params=query
+    )
+    groups = response.get("message_groups") or response.get("groups") or []
+    if isinstance(response, list):
+        groups = response
+    return coerce_many(output_cls, groups)
 
 
 def dismiss_message_group(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
@@ -1233,7 +1261,12 @@ def list_child_organizations(
     if _pget(params, "search"):
         query["search"] = params.search
     response = _client(asset).get(consts.CHILD_ORGANIZATIONS_ENDPOINT, params=query)
-    orgs = response.get("organizations") or response.get("child_organizations") or []
+    orgs = (
+        response.get("children")
+        or response.get("organizations")
+        or response.get("child_organizations")
+        or []
+    )
     if isinstance(response, list):
         orgs = response
     return coerce_many(output_cls, orgs)
@@ -1297,3 +1330,112 @@ def bulk_patch_child_organization_licensing(
             consts.CHILD_ORGANIZATIONS_BULK_LICENSING_ENDPOINT, json_data=body
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# Email bombs
+# ---------------------------------------------------------------------------
+
+
+def list_email_bombs(
+    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+) -> list[ActionOutput]:
+    query: dict[str, Any] = {
+        "limit": clamp_limit(_pget(params, "limit")),
+        "offset": int(_pget(params, "offset") or 0),
+    }
+    if _pget(params, "active") is not None:
+        query["active"] = bool(params.active)
+    if _pget(params, "mailbox_id"):
+        query["mailbox_id"] = params.mailbox_id
+    response = _client(asset).get(consts.EMAIL_BOMBS_ENDPOINT, params=query)
+    bombs = response.get("bombs") or response.get("email_bombs") or []
+    if isinstance(response, list):
+        bombs = response
+    return coerce_many(output_cls, bombs)
+
+
+def create_email_bomb(
+    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+) -> ActionOutput:
+    body = {
+        "mailbox_id": params.mailbox_id,
+        "start_time": params.start_time,
+        "end_time": params.end_time,
+    }
+    return coerce_output(
+        output_cls, _client(asset).post(consts.EMAIL_BOMBS_ENDPOINT, json_data=body)
+    )
+
+
+def get_email_bomb(
+    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+) -> ActionOutput:
+    endpoint = consts.EMAIL_BOMB_ENDPOINT.format(id=safe_id(params.email_bomb_id))
+    return coerce_output(output_cls, _client(asset).get(endpoint))
+
+
+def dismiss_email_bomb(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
+    endpoint = consts.EMAIL_BOMB_DISMISS_ENDPOINT.format(id=safe_id(params.email_bomb_id))
+    body: dict[str, Any] = {}
+    if _pget(params, "review_comment"):
+        body["review_comment"] = params.review_comment
+    _client(asset).post(endpoint, json_data=body or None)
+    soar.set_message("Email bomb dismissed successfully")
+    return ActionOutput()
+
+
+# ---------------------------------------------------------------------------
+# DLP release requests
+# ---------------------------------------------------------------------------
+
+
+def list_dlp_release_requests(
+    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+) -> list[ActionOutput]:
+    query: dict[str, Any] = {
+        "limit": clamp_limit(_pget(params, "limit")),
+        "offset": int(_pget(params, "offset") or 0),
+    }
+    if _pget(params, "status"):
+        query["status"] = params.status
+    response = _client(asset).get(consts.DLP_RELEASE_REQUESTS_ENDPOINT, params=query)
+    items = response.get("release_requests") or response.get("requests") or []
+    if isinstance(response, list):
+        items = response
+    return coerce_many(output_cls, items)
+
+
+def get_dlp_release_request(
+    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+) -> ActionOutput:
+    endpoint = consts.DLP_RELEASE_REQUEST_ENDPOINT.format(
+        id=safe_id(params.release_request_id)
+    )
+    return coerce_output(output_cls, _client(asset).get(endpoint))
+
+
+def approve_dlp_release_request(
+    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+) -> ActionOutput:
+    endpoint = consts.DLP_RELEASE_REQUEST_APPROVE_ENDPOINT.format(
+        id=safe_id(params.release_request_id)
+    )
+    body: dict[str, Any] = {}
+    if _pget(params, "comment"):
+        body["comment"] = params.comment
+    response = _client(asset).post(endpoint, json_data=body or None)
+    return coerce_output(output_cls, response if isinstance(response, dict) else {})
+
+
+def deny_dlp_release_request(
+    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
+) -> ActionOutput:
+    endpoint = consts.DLP_RELEASE_REQUEST_DENY_ENDPOINT.format(
+        id=safe_id(params.release_request_id)
+    )
+    body: dict[str, Any] = {}
+    if _pget(params, "comment"):
+        body["comment"] = params.comment
+    response = _client(asset).post(endpoint, json_data=body or None)
+    return coerce_output(output_cls, response if isinstance(response, dict) else {})

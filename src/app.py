@@ -95,14 +95,15 @@ class ScreenshotVaultSummary(ActionOutput):
 
 
 app = App(
-    name="sublimesecurity",
+    name="Sublime Security",
     app_type="information",
     logo="logo.svg",
     logo_dark="logo_dark.svg",
     product_vendor="Sublime Security",
     product_name="Sublime Platform",
     publisher="Splunk SOAR Community",
-    appid="e58b1480-1a76-59ea-8004-92df9a9291b8",
+    # SOAR Cloud validates appid as RFC UUID v4 (legacy v5 id was rejected on install).
+    appid="a863f5d1-30bb-4e9c-b68f-be595e2a0a5b",
     fips_compliant=True,
     encrypt_cache_state=True,
     encrypt_ingest_state=True,
@@ -435,7 +436,9 @@ def get_hunt_job_results(
 class ListListsParams(Params):
     name: str | None = Param(description="Filter by list name")
     entry_type: str | None = Param(
-        description="Filter by list entry type (e.g. string, user_group, provider_org_unit). If omitted, lists of all entry types are returned"
+        description="List entry type filter (string, user_group, provider_org_unit). Defaults to string because the API requires entry_type",
+        default="string",
+        value_list=["string", "user_group", "provider_org_unit"],
     )
 
 
@@ -449,10 +452,10 @@ class ListListsOutput(ActionOutput):
     updated_at: str
 
 
-@app.action(description="Retrieve all lists", action_type="investigate")
+@app.action(description="Retrieve lists filtered by entry type", action_type="investigate")
 def list_lists(
     params: ListListsParams, soar: SOARClient, asset: Asset
-) -> ListListsOutput:
+) -> list[ListListsOutput]:
     return impl.list_lists(params, soar, asset, ListListsOutput)
 
 
@@ -972,6 +975,54 @@ def graymail_message_groups(
     return impl.graymail_message_groups(params, soar, asset, GraymailMessageGroupsOutput)
 
 
+class SpamMessageGroupsParams(Params):
+    message_group_ids: str = Param(
+        description="Comma-separated list of message group IDs"
+    )
+    classification: str | None = Param(
+        description="Classification",
+        value_list=[
+            "malicious",
+            "benign",
+            "unwanted",
+            "simulation",
+            "graymail",
+            "spam",
+            "violation",
+            "non-violation",
+        ],
+    )
+    report_label: str | None = Param(
+        description="Label to apply to messages being reviewed",
+        value_list=[
+            "spam",
+            "phishing",
+            "false_positive",
+            "false_negative",
+            "phishing_simulation",
+            "graymail",
+            "violation",
+            "non-violation",
+        ],
+    )
+    review_comment: str | None = Param(description="Optional review comment")
+
+
+class SpamMessageGroupsOutput(ActionOutput):
+    task_id: str
+
+
+@app.action(
+    description="Move multiple message groups to spam",
+    action_type="correct",
+    read_only=False,
+)
+def spam_message_groups(
+    params: SpamMessageGroupsParams, soar: SOARClient, asset: Asset
+) -> SpamMessageGroupsOutput:
+    return impl.spam_message_groups(params, soar, asset, SpamMessageGroupsOutput)
+
+
 class RestoreMessageGroupsParams(Params):
     message_group_ids: str = Param(
         description="Comma-separated list of message group IDs"
@@ -1206,6 +1257,39 @@ def get_message_group(
     params: GetMessageGroupParams, soar: SOARClient, asset: Asset
 ) -> GetMessageGroupOutput:
     return impl.get_message_group(params, soar, asset, GetMessageGroupOutput)
+
+
+class GetMessageGroupsSiemSummaryParams(Params):
+    created_at_gte: str | None = Param(
+        description="Inclusive created_at lower bound (ISO 8601 UTC)"
+    )
+    created_at_lt: str | None = Param(
+        description="Exclusive created_at upper bound (ISO 8601 UTC)"
+    )
+    limit: float | None = Param(
+        description="Maximum number of summaries to return (max: 500)", default=100
+    )
+    offset: float | None = Param(
+        description="Zero-based offset for pagination", default=0
+    )
+
+
+class GetMessageGroupsSiemSummaryOutput(ActionOutput):
+    id: str | None = None
+    classification: str | None = None
+    state: str | None = None
+
+
+@app.action(
+    description="Get SIEM-oriented summary of flagged message groups",
+    action_type="investigate",
+)
+def get_message_groups_siem_summary(
+    params: GetMessageGroupsSiemSummaryParams, soar: SOARClient, asset: Asset
+) -> list[GetMessageGroupsSiemSummaryOutput]:
+    return impl.get_message_groups_siem_summary(
+        params, soar, asset, GetMessageGroupsSiemSummaryOutput
+    )
 
 
 class DismissMessageGroupParams(Params):
@@ -2713,6 +2797,162 @@ def bulk_patch_child_organization_licensing(
     return impl.bulk_patch_child_organization_licensing(
         params, soar, asset, BulkPatchChildOrganizationLicensingOutput
     )
+
+
+class ListEmailBombsParams(Params):
+    active: bool | None = Param(description="Filter by active status")
+    mailbox_id: str | None = Param(description="Filter by mailbox ID")
+    limit: float | None = Param(
+        description="Maximum number of email bombs to return (max: 500)", default=100
+    )
+    offset: float | None = Param(
+        description="Zero-based offset for pagination", default=0
+    )
+
+
+class ListEmailBombsOutput(ActionOutput):
+    id: str | None = None
+    active: bool | None = None
+    message_count: float | None = None
+    created_at: str | None = None
+    end_time: str | None = None
+
+
+@app.action(description="List email bombs", action_type="investigate")
+def list_email_bombs(
+    params: ListEmailBombsParams, soar: SOARClient, asset: Asset
+) -> list[ListEmailBombsOutput]:
+    return impl.list_email_bombs(params, soar, asset, ListEmailBombsOutput)
+
+
+class CreateEmailBombParams(Params):
+    mailbox_id: str = Param(description="Mailbox ID to declare the email bomb for")
+    start_time: str = Param(description="Start of the email bomb time range (ISO 8601 UTC)")
+    end_time: str = Param(description="End of the email bomb time range (ISO 8601 UTC)")
+
+
+class CreateEmailBombOutput(ActionOutput):
+    created_bomb_id: str | None = None
+
+
+@app.action(
+    description="Create or extend an email bomb for a mailbox time range",
+    action_type="generic",
+    read_only=False,
+)
+def create_email_bomb(
+    params: CreateEmailBombParams, soar: SOARClient, asset: Asset
+) -> CreateEmailBombOutput:
+    return impl.create_email_bomb(params, soar, asset, CreateEmailBombOutput)
+
+
+class GetEmailBombParams(Params):
+    email_bomb_id: str = Param(description="Email bomb ID", primary=True)
+
+
+class GetEmailBombOutput(ActionOutput):
+    id: str | None = None
+    active: bool | None = None
+    message_count: float | None = None
+    created_at: str | None = None
+    end_time: str | None = None
+
+
+@app.action(description="Get an email bomb by ID", action_type="investigate")
+def get_email_bomb(
+    params: GetEmailBombParams, soar: SOARClient, asset: Asset
+) -> GetEmailBombOutput:
+    return impl.get_email_bomb(params, soar, asset, GetEmailBombOutput)
+
+
+class DismissEmailBombParams(Params):
+    email_bomb_id: str = Param(description="Email bomb ID", primary=True)
+    review_comment: str | None = Param(description="Optional dismiss review comment")
+
+
+@app.action(
+    description="Dismiss an email bomb",
+    action_type="correct",
+    read_only=False,
+)
+def dismiss_email_bomb(
+    params: DismissEmailBombParams, soar: SOARClient, asset: Asset
+) -> ActionOutput:
+    return impl.dismiss_email_bomb(params, soar, asset)
+
+
+class ListDlpReleaseRequestsParams(Params):
+    status: str | None = Param(description="Optional status filter")
+    limit: float | None = Param(
+        description="Maximum number of requests to return (max: 500)", default=100
+    )
+    offset: float | None = Param(
+        description="Zero-based offset for pagination", default=0
+    )
+
+
+class ListDlpReleaseRequestsOutput(ActionOutput):
+    id: str | None = None
+    status: str | None = None
+
+
+@app.action(description="List DLP release requests", action_type="investigate")
+def list_dlp_release_requests(
+    params: ListDlpReleaseRequestsParams, soar: SOARClient, asset: Asset
+) -> list[ListDlpReleaseRequestsOutput]:
+    return impl.list_dlp_release_requests(
+        params, soar, asset, ListDlpReleaseRequestsOutput
+    )
+
+
+class GetDlpReleaseRequestParams(Params):
+    release_request_id: str = Param(description="DLP release request ID", primary=True)
+
+
+class GetDlpReleaseRequestOutput(ActionOutput):
+    id: str | None = None
+    status: str | None = None
+
+
+@app.action(description="Get a DLP release request by ID", action_type="investigate")
+def get_dlp_release_request(
+    params: GetDlpReleaseRequestParams, soar: SOARClient, asset: Asset
+) -> GetDlpReleaseRequestOutput:
+    return impl.get_dlp_release_request(
+        params, soar, asset, GetDlpReleaseRequestOutput
+    )
+
+
+class ApproveDlpReleaseRequestParams(Params):
+    release_request_id: str = Param(description="DLP release request ID", primary=True)
+    comment: str | None = Param(description="Optional approval comment")
+
+
+@app.action(
+    description="Approve a DLP release request",
+    action_type="correct",
+    read_only=False,
+)
+def approve_dlp_release_request(
+    params: ApproveDlpReleaseRequestParams, soar: SOARClient, asset: Asset
+) -> ActionOutput:
+    return impl.approve_dlp_release_request(params, soar, asset, ActionOutput)
+
+
+class DenyDlpReleaseRequestParams(Params):
+    release_request_id: str = Param(description="DLP release request ID", primary=True)
+    comment: str | None = Param(description="Optional denial comment")
+
+
+@app.action(
+    description="Deny a DLP release request",
+    action_type="correct",
+    read_only=False,
+)
+def deny_dlp_release_request(
+    params: DenyDlpReleaseRequestParams, soar: SOARClient, asset: Asset
+) -> ActionOutput:
+    return impl.deny_dlp_release_request(params, soar, asset, ActionOutput)
 
 
 @app.webhook("webhook", allowed_methods=["POST"])
