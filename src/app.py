@@ -747,12 +747,14 @@ def list_mailboxes(
 
 class ListMessageGroupsParams(Params):
     start_time: str | None = Param(
-        description="Start time filter (ISO 8601 UTC), maps to created_at__gte"
+        description="Start time filter (ISO 8601 UTC), maps to created_at__gte. Defaults to the last 7 days when no canonical id or report-time bound is set"
     )
     end_time: str | None = Param(
         description="End time filter (ISO 8601 UTC), maps to created_at__lt"
     )
-    flagged: bool | None = Param(description="Filter by flagged status")
+    flagged: bool | None = Param(
+        description="Filter by flagged status. Defaults to true when no canonical id is set and user_reported is not true, because the API requires one of those"
+    )
     reviewed: bool | None = Param(description="Filter by reviewed status")
     user_reported: bool | None = Param(
         description="Filter to groups with at least one reported message"
@@ -827,7 +829,8 @@ class ListMessageGroupsOutput(ActionOutput):
 
 
 @app.action(
-    description="List message groups with optional filters", action_type="investigate"
+    description="List message groups. With no canonical id, defaults to flagged groups from the last 7 days",
+    action_type="investigate",
 )
 def list_message_groups(
     params: ListMessageGroupsParams, soar: SOARClient, asset: Asset
@@ -1177,7 +1180,7 @@ class SearchMessageGroupsOutput(ActionOutput):
 
 
 @app.action(
-    description="Search message groups across multiple fields",
+    description="Search message groups. At least one search field, state, hash, or time bound is required",
     action_type="investigate",
 )
 def search_message_groups(
@@ -1261,16 +1264,25 @@ def get_message_group(
 
 class GetMessageGroupsSiemSummaryParams(Params):
     created_at_gte: str | None = Param(
-        description="Inclusive created_at lower bound (ISO 8601 UTC)"
+        description="Inclusive lower bound (ISO 8601 UTC), sent as timestamp__gte"
     )
     created_at_lt: str | None = Param(
-        description="Exclusive created_at upper bound (ISO 8601 UTC)"
+        description="Exclusive upper bound (ISO 8601 UTC), sent as timestamp__lt"
+    )
+    siem_type: str | None = Param(
+        description="flagged filters on newest message time; reported filters on first phish-report time",
+        default="flagged",
+        value_list=["flagged", "reported"],
+    )
+    cursor: str | None = Param(
+        description="Opaque pagination cursor returned by the previous response"
     )
     limit: float | None = Param(
-        description="Maximum number of summaries to return (max: 500)", default=100
+        description="Maximum number of summaries to return (max: 1000)", default=100
     )
     offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
+        description="Ignored. This endpoint paginates with cursor, not offset",
+        default=0,
     )
 
 
@@ -1278,6 +1290,26 @@ class GetMessageGroupsSiemSummaryOutput(ActionOutput):
     id: str | None = None
     classification: str | None = None
     state: str | None = None
+    first_seen: str | None = None
+    last_seen: str | None = None
+    first_reported_as_phish_at: str | None = None
+    message_count: float | None = None
+    recipient_count: float | None = None
+    attack_score_verdict: str | None = None
+    detection_rule_names: str | None = None
+    senders: str | None = None
+    sender_domains: str | None = None
+    subjects: str | None = None
+    recipients: str | None = None
+    source_ips: str | None = None
+    attachment_names: str | None = None
+    attachment_hashes: str | None = None
+
+
+class GetMessageGroupsSiemSummarySummary(ActionOutput):
+    cursor: str | None = None
+    total: float | None = None
+    truncated: bool | None = None
 
 
 @app.action(
@@ -1288,7 +1320,11 @@ def get_message_groups_siem_summary(
     params: GetMessageGroupsSiemSummaryParams, soar: SOARClient, asset: Asset
 ) -> list[GetMessageGroupsSiemSummaryOutput]:
     return impl.get_message_groups_siem_summary(
-        params, soar, asset, GetMessageGroupsSiemSummaryOutput
+        params,
+        soar,
+        asset,
+        GetMessageGroupsSiemSummaryOutput,
+        summary_cls=GetMessageGroupsSiemSummarySummary,
     )
 
 
@@ -1466,7 +1502,8 @@ class AnalyzeRawMessageParams(Params):
         description="Base64 encoded EML (alternative to vault_id)"
     )
     run_active_detection_rules: bool | None = Param(
-        description="Run all active detection rules", default=False
+        description="Run all active detection rules. Used when no other run flag is set",
+        default=True,
     )
     run_all_detection_rules: bool | None = Param(
         description="Run all detection rules including inactive", default=False
@@ -1482,7 +1519,7 @@ class AnalyzeRawMessageOutput(ActionOutput):
 
 
 @app.action(
-    description="Analyze a raw EML message against rules and queries",
+    description="Analyze a raw EML message against rules and queries. Runs active detection rules when no run flag is set",
     action_type="investigate",
 )
 def analyze_raw_message(
@@ -1498,7 +1535,9 @@ class RenderAttachmentImageParams(Params):
     base64_data: str | None = Param(
         description="Base64 encoded raw attachment bytes (alternative to vault_id)"
     )
-    file_type: str | None = Param(description="File type hint for rendering")
+    file_type: str | None = Param(
+        description="File type hint for rendering, such as pdf. Image types such as png are rejected"
+    )
 
 
 class RenderAttachmentImageOutput(ActionOutput):
@@ -1702,7 +1741,8 @@ class AnalyzeMessageByIdParams(Params):
         description="UUID of the message", primary=True, cef_types=["message id"]
     )
     run_active_detection_rules: bool | None = Param(
-        description="Run all active detection rules", default=False
+        description="Run all active detection rules. Used when no other run flag is set",
+        default=True,
     )
     run_all_detection_rules: bool | None = Param(
         description="Run all detection rules including inactive", default=False
@@ -1718,7 +1758,7 @@ class AnalyzeMessageByIdOutput(ActionOutput):
 
 
 @app.action(
-    description="Analyze an existing message by its ID against rules and queries",
+    description="Analyze an existing message by its ID against rules and queries. Runs active detection rules when no run flag is set",
     action_type="investigate",
 )
 def analyze_message_by_id(
@@ -2263,7 +2303,9 @@ class UpdateRuleOutput(ActionOutput):
 
 
 @app.action(
-    description="Update an existing rule", action_type="generic", read_only=False
+    description="Update an existing rule. Omitted fields are kept from the current rule",
+    action_type="generic",
+    read_only=False,
 )
 def update_rule(
     params: UpdateRuleParams, soar: SOARClient, asset: Asset
@@ -2362,7 +2404,9 @@ def get_task(params: GetTaskParams, soar: SOARClient, asset: Asset) -> GetTaskOu
 
 
 class ListUserReportsParams(Params):
-    start_time: str | None = Param(description="Start time filter (ISO 8601 UTC)")
+    start_time: str | None = Param(
+        description="Start time filter (ISO 8601 UTC). Defaults to the last 30 days when end_time is also empty"
+    )
     end_time: str | None = Param(description="End time filter (ISO 8601 UTC)")
     limit: float | None = Param(
         description="Maximum number of results (max: 500)", default=100
@@ -2377,7 +2421,8 @@ class ListUserReportsOutput(ActionOutput):
 
 
 @app.action(
-    description="List user-submitted phishing reports", action_type="investigate"
+    description="List user-submitted phishing reports. Defaults to the last 30 days when no time bound is set",
+    action_type="investigate",
 )
 def list_user_reports(
     params: ListUserReportsParams, soar: SOARClient, asset: Asset
@@ -2896,7 +2941,9 @@ class ListDlpReleaseRequestsOutput(ActionOutput):
     status: str | None = None
 
 
-@app.action(description="List DLP release requests", action_type="investigate")
+@app.action(
+    description="List DLP release requests", action_type="investigate"
+)
 def list_dlp_release_requests(
     params: ListDlpReleaseRequestsParams, soar: SOARClient, asset: Asset
 ) -> list[ListDlpReleaseRequestsOutput]:
