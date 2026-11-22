@@ -1,10 +1,10 @@
 # Sublime Security
 
 Publisher: Splunk SOAR Community <br>
-Connector Version: 1.0.0 <br>
+Connector Version: 1.1.0 <br>
 Product Vendor: Sublime Security <br>
 Product Name: Sublime Platform <br>
-Minimum Product Version: 6.3.0
+Minimum Product Version: 7.0.0
 
 Integrates with the Sublime Security Platform API to perform email security operations including binexplode analysis, link analysis, audit log management, hunt jobs, list management, message group actions, message analysis, rule management, SCIM user provisioning, and more
 
@@ -28,7 +28,7 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 
 ### Supported Actions
 
-[test connectivity](#action-test-connectivity) - Validate the asset configuration for connectivity using supplied credentials <br>
+[test connectivity](#action-test-connectivity) - test connectivity <br>
 [upload binary](#action-upload-binary) - Upload a binary to be binexploded. Results expire after 1 hour. Max original file size 37 MB <br>
 [get binexplode results](#action-get-binexplode-results) - Get results of a binexplode scan by task ID <br>
 [analyze link](#action-analyze-link) - Analyze a provided URL using Sublime Security ml.link_analysis for credential phishing detection <br>
@@ -38,7 +38,7 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 [start hunt job](#action-start-hunt-job) - Start a hunt job using MQL source <br>
 [get hunt job](#action-get-hunt-job) - Get the status of a hunt job <br>
 [get hunt job results](#action-get-hunt-job-results) - Get the results of a completed hunt job <br>
-[list lists](#action-list-lists) - Retrieve all lists <br>
+[list lists](#action-list-lists) - Retrieve lists filtered by entry type <br>
 [create list](#action-create-list) - Create a new list <br>
 [delete list](#action-delete-list) - Delete a list by ID <br>
 [get list](#action-get-list) - Get a single list by ID <br>
@@ -54,11 +54,13 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 [dismiss message groups](#action-dismiss-message-groups) - Dismiss multiple message groups <br>
 [quarantine message groups](#action-quarantine-message-groups) - Quarantine multiple message groups <br>
 [graymail message groups](#action-graymail-message-groups) - Move multiple message groups to graymail <br>
+[spam message groups](#action-spam-message-groups) - Move multiple message groups to spam <br>
 [restore message groups](#action-restore-message-groups) - Restore multiple message groups <br>
 [review message groups](#action-review-message-groups) - Review message groups with classification and optional action <br>
 [search message groups](#action-search-message-groups) - Search message groups across multiple fields <br>
 [trash message groups](#action-trash-message-groups) - Trash multiple message groups <br>
 [get message group](#action-get-message-group) - Get a single message group by canonical ID <br>
+[get message groups siem summary](#action-get-message-groups-siem-summary) - Get SIEM-oriented summary of flagged message groups <br>
 [dismiss message group](#action-dismiss-message-group) - Dismiss a single message group <br>
 [quarantine message group](#action-quarantine-message-group) - Quarantine a single message group <br>
 [restore message group](#action-restore-message-group) - Restore a single message group <br>
@@ -107,14 +109,29 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 [validate scim auth](#action-validate-scim-auth) - Validate SCIM-specific authentication <br>
 [list scim schemas](#action-list-scim-schemas) - List SCIM schemas <br>
 [get scim schema](#action-get-scim-schema) - Get a single SCIM schema by ID <br>
-[get scim service provider config](#action-get-scim-service-provider-config) - Get SCIM service provider configuration
+[get scim service provider config](#action-get-scim-service-provider-config) - Get SCIM service provider configuration <br>
+[list child organizations](#action-list-child-organizations) - List child organizations under the calling organization <br>
+[create child organization](#action-create-child-organization) - Create a child organization under the calling organization <br>
+[patch child organization](#action-patch-child-organization) - Update a child organization's name and/or delegation settings <br>
+[patch child organization licensing](#action-patch-child-organization-licensing) - Apply a license transition to a child organization <br>
+[bulk patch child organization licensing](#action-bulk-patch-child-organization-licensing) - Bulk update licensing for up to 200 child organizations <br>
+[list email bombs](#action-list-email-bombs) - List email bombs <br>
+[create email bomb](#action-create-email-bomb) - Create or extend an email bomb for a mailbox time range <br>
+[get email bomb](#action-get-email-bomb) - Get an email bomb by ID <br>
+[dismiss email bomb](#action-dismiss-email-bomb) - Dismiss an email bomb <br>
+[list dlp release requests](#action-list-dlp-release-requests) - List DLP release requests <br>
+[get dlp release request](#action-get-dlp-release-request) - Get a DLP release request by ID <br>
+[approve dlp release request](#action-approve-dlp-release-request) - Approve a DLP release request <br>
+[deny dlp release request](#action-deny-dlp-release-request) - Deny a DLP release request
 
 ## action: 'test connectivity'
 
-Validate the asset configuration for connectivity using supplied credentials
+test connectivity
 
 Type: **test** <br>
 Read only: **True**
+
+Basic test for app.
 
 #### Action Parameters
 
@@ -122,7 +139,12 @@ No parameters are required for this action
 
 #### Action Output
 
-No Output
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'upload binary'
 
@@ -143,22 +165,21 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | success failed |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.vault_id | string | `vault id` | |
-action_result.parameter.file_name | string | | |
 action_result.parameter.base64_data | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.parameter.file_name | string | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get binexplode results'
 
 Get results of a binexplode scan by task ID
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -170,10 +191,9 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | success failed |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_results | numeric | | |
-action_result.summary.task_state | string | | |
+action_result.parameter.task_id | string | | |
 action_result.data.\*.file_name | string | | |
 action_result.data.\*.file_extension | string | | |
 action_result.data.\*.depth | numeric | | |
@@ -184,16 +204,15 @@ action_result.data.\*.parent_node_id | string | | |
 action_result.data.\*.scan.hash.md5 | string | `md5` | |
 action_result.data.\*.scan.hash.sha1 | string | `sha1` | |
 action_result.data.\*.scan.hash.sha256 | string | `sha256` | |
-action_result.parameter.task_id | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'analyze link'
 
 Analyze a provided URL using Sublime Security ml.link_analysis for credential phishing detection
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -206,37 +225,38 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | success failed |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.screenshot_vault_id | string | `vault id` | |
-action_result.summary.disposition | string | | benign phishing unknown |
-action_result.summary.confidence | string | | |
-action_result.summary.brand_name | string | | |
-action_result.summary.analyzed | boolean | | |
-action_result.data.\*.analyzed | boolean | | |
+action_result.parameter.url | string | `url` | |
+action_result.parameter.no_logo_detect | boolean | | |
+action_result.data.\*.analyzed | boolean | | True False |
 action_result.data.\*.credphish.disposition | string | | |
 action_result.data.\*.credphish.confidence | string | | |
 action_result.data.\*.credphish.brand.name | string | | |
-action_result.data.\*.credphish.contains_login | boolean | | |
-action_result.data.\*.credphish.contains_captcha | boolean | | |
+action_result.data.\*.credphish.contains_login | boolean | | True False |
+action_result.data.\*.credphish.contains_captcha | boolean | | True False |
 action_result.data.\*.effective_url.url | string | `url` | |
-action_result.data.\*.original_url.url | string | `url` | |
 action_result.data.\*.effective_url.domain.domain | string | `domain` | |
+action_result.data.\*.original_url.url | string | `url` | |
 action_result.data.\*.content_type | string | | |
 action_result.data.\*.page_status_code | numeric | | |
-action_result.data.\*.retrieved | boolean | | |
+action_result.data.\*.retrieved | boolean | | True False |
 action_result.data.\*.screenshot.raw | string | | |
-action_result.parameter.url | string | `url` | |
-action_result.parameter.no_logo_detect | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.summary.screenshot_vault_id | string | | |
+action_result.summary.analyzed | boolean | | True False |
+action_result.summary.disposition | string | | |
+action_result.summary.confidence | string | | |
+action_result.summary.brand_name | string | | |
+action_result.summary.effective_url | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list audit events'
 
 List events in the Sublime Security audit log
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -253,10 +273,14 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_events | numeric | | |
-action_result.summary.events_returned | numeric | | |
+action_result.parameter.start_time | string | | |
+action_result.parameter.end_time | string | | |
+action_result.parameter.event_type | string | | |
+action_result.parameter.user_ids | string | | |
+action_result.parameter.limit | numeric | | |
+action_result.parameter.offset | numeric | | |
 action_result.data.\*.id | string | `event id` | |
 action_result.data.\*.type | string | | |
 action_result.data.\*.created_at | string | | |
@@ -264,21 +288,15 @@ action_result.data.\*.created_by.email_address | string | `email` | |
 action_result.data.\*.data.request.method | string | | |
 action_result.data.\*.data.request.path | string | | |
 action_result.data.\*.data.request.ip | string | `ip` | |
-action_result.parameter.start_time | string | | |
-action_result.parameter.end_time | string | | |
-action_result.parameter.event_type | string | | |
-action_result.parameter.user_ids | string | | |
-action_result.parameter.limit | numeric | | |
-action_result.parameter.offset | numeric | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list audit event types'
 
 List all available event types for the audit log
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -288,20 +306,19 @@ No parameters are required for this action
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_event_types | numeric | | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.type | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get audit event'
 
 Retrieve a single event from the audit log
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -313,8 +330,9 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.event_id | string | `event id` | |
 action_result.data.\*.id | string | `event id` | |
 action_result.data.\*.type | string | | |
 action_result.data.\*.created_at | string | | |
@@ -322,9 +340,8 @@ action_result.data.\*.created_by.email_address | string | `email` | |
 action_result.data.\*.data.request.method | string | | |
 action_result.data.\*.data.request.path | string | | |
 action_result.data.\*.data.request.ip | string | `ip` | |
-action_result.parameter.event_id | string | `event id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'start hunt job'
 
@@ -351,10 +368,8 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.hunt_job_id | string | | |
-action_result.data.\*.hunt_job_id | string | | |
 action_result.parameter.source | string | | |
 action_result.parameter.range_start_time | string | | |
 action_result.parameter.range_end_time | string | | |
@@ -364,15 +379,16 @@ action_result.parameter.triage_flagged | boolean | | |
 action_result.parameter.triage_reported | boolean | | |
 action_result.parameter.triage_email_bomb | boolean | | |
 action_result.parameter.triage_dlp_rule_matched | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.hunt_job_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get hunt job'
 
 Get the status of a hunt job
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -384,26 +400,25 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.hunt_status | string | | |
+action_result.parameter.hunt_job_id | string | | |
 action_result.data.\*.id | string | | |
 action_result.data.\*.status | string | | |
 action_result.data.\*.source | string | | |
 action_result.data.\*.range_start_time | string | | |
 action_result.data.\*.range_end_time | string | | |
 action_result.data.\*.error | string | | |
-action_result.data.\*.results_truncated | boolean | | |
-action_result.parameter.hunt_job_id | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.results_truncated | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get hunt job results'
 
 Get the results of a completed hunt job
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -417,51 +432,48 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_group_count | numeric | | |
-action_result.summary.groups_returned | numeric | | |
-action_result.data.\*.id | string | | |
-action_result.data.\*.review_status | string | | |
-action_result.data.\*.classification | string | | |
 action_result.parameter.hunt_job_id | string | | |
 action_result.parameter.limit | numeric | | |
 action_result.parameter.offset | numeric | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.review_status | string | | |
+action_result.data.\*.classification | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list lists'
 
-Retrieve all lists
+Retrieve lists filtered by entry type
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
 PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 --------- | -------- | ----------- | ---- | --------
 **name** | optional | Filter by list name | string | |
-**entry_type** | optional | Filter by list entry type (e.g. string, user_group, provider_org_unit). If omitted, lists of all entry types are returned | string | |
+**entry_type** | optional | List entry type filter (string, user_group, provider_org_unit). Defaults to string because the API requires entry_type | string | |
 
 #### Action Output
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_lists | numeric | | |
+action_result.parameter.name | string | | |
+action_result.parameter.entry_type | string | | |
 action_result.data.\*.id | string | `list id` | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.description | string | | |
 action_result.data.\*.entry_type | string | | |
-action_result.data.\*.editable | boolean | | |
+action_result.data.\*.editable | boolean | | True False |
 action_result.data.\*.created_at | string | | |
 action_result.data.\*.updated_at | string | | |
-action_result.parameter.name | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
-action_result.parameter.entry_type | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'create list'
 
@@ -481,16 +493,15 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.list_id | string | `list id` | |
+action_result.parameter.name | string | | |
+action_result.parameter.description | string | | |
 action_result.data.\*.id | string | `list id` | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.description | string | | |
-action_result.parameter.name | string | | |
-action_result.parameter.description | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'delete list'
 
@@ -509,18 +520,18 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.parameter.list_id | string | `list id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get list'
 
 Get a single list by ID
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -532,18 +543,18 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.list_id | string | `list id` | |
 action_result.data.\*.id | string | `list id` | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.description | string | | |
 action_result.data.\*.entry_type | string | | |
-action_result.data.\*.editable | boolean | | |
+action_result.data.\*.editable | boolean | | True False |
 action_result.data.\*.created_at | string | | |
 action_result.data.\*.updated_at | string | | |
-action_result.parameter.list_id | string | `list id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'patch list'
 
@@ -563,22 +574,22 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.list_id | string | `list id` | |
+action_result.parameter.description | string | | |
 action_result.data.\*.id | string | `list id` | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.description | string | | |
-action_result.parameter.list_id | string | `list id` | |
-action_result.parameter.description | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get list entries'
 
 Get all entries in a list, optionally saving them to the vault as a CSV file
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -592,16 +603,15 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_entries | numeric | | |
-action_result.summary.vault_id | string | `vault id` | |
-action_result.data.\*.entry | string | | |
 action_result.parameter.list_id | string | `list id` | |
 action_result.parameter.save_to_vault | boolean | | |
 action_result.parameter.csv_file_name | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.entry | string | | |
+action_result.summary.vault_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'set list entries'
 
@@ -622,14 +632,13 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.entries_set | numeric | | |
 action_result.parameter.list_id | string | `list id` | |
 action_result.parameter.entries | string | | |
 action_result.parameter.vault_id | string | `vault id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'delete list entry'
 
@@ -649,19 +658,19 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.parameter.list_id | string | `list id` | |
 action_result.parameter.entry | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get list entry'
 
 Check if a single entry or multiple entries exist in a list
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -674,16 +683,14 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_checked | numeric | | |
-action_result.summary.total_found | numeric | | |
-action_result.data.\*.entry | string | | |
-action_result.data.\*.found | boolean | | |
 action_result.parameter.list_id | string | `list id` | |
 action_result.parameter.entry | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.entry | string | | |
+action_result.data.\*.found | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'add list entry'
 
@@ -703,12 +710,12 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.parameter.list_id | string | `list id` | |
 action_result.parameter.entry | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'process raw message'
 
@@ -740,14 +747,8 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.message_id | string | | |
-action_result.summary.flagged_rules_count | numeric | | |
-action_result.data.\*.canonical_id | string | | |
-action_result.data.\*.message_id | string | `message id` | |
-action_result.data.\*.raw_message_id | string | | |
-action_result.data.\*.flagged_rules | string | | |
 action_result.parameter.vault_id | string | `vault id` | |
 action_result.parameter.base64_data | string | | |
 action_result.parameter.mailbox_email_address | string | `email` | |
@@ -762,15 +763,19 @@ action_result.parameter.folder | string | | |
 action_result.parameter.labels | string | | |
 action_result.parameter.route_type | string | | |
 action_result.parameter.message_type | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.canonical_id | string | | |
+action_result.data.\*.message_id | string | `message id` | |
+action_result.data.\*.raw_message_id | string | | |
+action_result.data.\*.flagged_rules | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list mailboxes'
 
 List connected mailboxes
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -790,14 +795,8 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_mailboxes | numeric | | |
-action_result.summary.active_mailboxes | numeric | | |
-action_result.data.\*.id | string | | |
-action_result.data.\*.email_address | string | `email` | |
-action_result.data.\*.active | boolean | | |
-action_result.data.\*.subscription_error_status | string | | |
 action_result.parameter.active | boolean | | |
 action_result.parameter.marked_active | boolean | | |
 action_result.parameter.search | string | | |
@@ -807,15 +806,19 @@ action_result.parameter.sub_error_types | string | | |
 action_result.parameter.message_source_id | string | | |
 action_result.parameter.limit | numeric | | |
 action_result.parameter.offset | numeric | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.email_address | string | `email` | |
+action_result.data.\*.active | boolean | | True False |
+action_result.data.\*.subscription_error_status | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list message groups'
 
 List message groups with optional filters
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -852,14 +855,8 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_groups | numeric | | |
-action_result.summary.groups_returned | numeric | | |
-action_result.data.\*.id | string | `message group id` | |
-action_result.data.\*.review_status | string | | |
-action_result.data.\*.classification | string | | |
-action_result.data.\*.state | string | | |
 action_result.parameter.start_time | string | | |
 action_result.parameter.end_time | string | | |
 action_result.parameter.flagged | boolean | | |
@@ -886,8 +883,12 @@ action_result.parameter.vendor_id | string | | |
 action_result.parameter.first_message_reported_at_gte | string | | |
 action_result.parameter.limit | numeric | | |
 action_result.parameter.offset | numeric | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | `message group id` | |
+action_result.data.\*.review_status | string | | |
+action_result.data.\*.classification | string | | |
+action_result.data.\*.state | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'dismiss message groups'
 
@@ -909,14 +910,14 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.parameter.message_group_ids | string | | |
 action_result.parameter.classification | string | | |
 action_result.parameter.report_label | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'quarantine message groups'
 
@@ -938,16 +939,15 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_group_ids | string | | |
 action_result.parameter.classification | string | | |
 action_result.parameter.report_label | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'graymail message groups'
 
@@ -969,16 +969,45 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_group_ids | string | | |
 action_result.parameter.classification | string | | |
 action_result.parameter.report_label | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'spam message groups'
+
+Move multiple message groups to spam
+
+Type: **correct** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**message_group_ids** | required | Comma-separated list of message group IDs | string | |
+**classification** | optional | Classification | string | |
+**report_label** | optional | Label to apply to messages being reviewed | string | |
+**review_comment** | optional | Optional review comment | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.message_group_ids | string | | |
+action_result.parameter.classification | string | | |
+action_result.parameter.report_label | string | | |
+action_result.parameter.review_comment | string | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'restore message groups'
 
@@ -1000,16 +1029,15 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_group_ids | string | | |
 action_result.parameter.classification | string | | |
 action_result.parameter.report_label | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'review message groups'
 
@@ -1032,25 +1060,24 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
-action_result.data.\*.actions | string | | |
 action_result.parameter.message_group_ids | string | | |
 action_result.parameter.classification | string | | |
 action_result.parameter.action | string | | |
 action_result.parameter.review_comment | string | | |
 action_result.parameter.share_with_sublime | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+action_result.data.\*.actions | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'search message groups'
 
 Search message groups across multiple fields
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1079,14 +1106,8 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_groups | numeric | | |
-action_result.summary.groups_returned | numeric | | |
-action_result.data.\*.id | string | `message group id` | |
-action_result.data.\*.review_status | string | | |
-action_result.data.\*.classification | string | | |
-action_result.data.\*.state | string | | |
 action_result.parameter.any | string | | |
 action_result.parameter.sender | string | `email` | |
 action_result.parameter.to | string | `email` | |
@@ -1105,8 +1126,12 @@ action_result.parameter.first_reported_as_phish_at_gte | string | | |
 action_result.parameter.first_reported_as_phish_at_lt | string | | |
 action_result.parameter.limit | numeric | | |
 action_result.parameter.offset | numeric | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | `message group id` | |
+action_result.data.\*.review_status | string | | |
+action_result.data.\*.classification | string | | |
+action_result.data.\*.state | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'trash message groups'
 
@@ -1128,23 +1153,22 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_group_ids | string | | |
 action_result.parameter.classification | string | | |
 action_result.parameter.report_label | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get message group'
 
 Get a single message group by canonical ID
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1156,8 +1180,9 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.message_group_id | string | `message group id` | |
 action_result.data.\*.id | string | `message group id` | |
 action_result.data.\*.review_status | string | | |
 action_result.data.\*.classification | string | | |
@@ -1165,9 +1190,40 @@ action_result.data.\*.state | string | | |
 action_result.data.\*.flagged_rules | string | | |
 action_result.data.\*.messages | string | | |
 action_result.data.\*.user_reports | string | | |
-action_result.parameter.message_group_id | string | `message group id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'get message groups siem summary'
+
+Get SIEM-oriented summary of flagged message groups
+
+Type: **investigate** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**created_at_gte** | optional | Inclusive created_at lower bound (ISO 8601 UTC) | string | |
+**created_at_lt** | optional | Exclusive created_at upper bound (ISO 8601 UTC) | string | |
+**limit** | optional | Maximum number of summaries to return (max: 500) | numeric | |
+**offset** | optional | Zero-based offset for pagination | numeric | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.created_at_gte | string | | |
+action_result.parameter.created_at_lt | string | | |
+action_result.parameter.limit | numeric | | |
+action_result.parameter.offset | numeric | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.classification | string | | |
+action_result.data.\*.state | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'dismiss message group'
 
@@ -1188,13 +1244,13 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.parameter.message_group_id | string | `message group id` | |
 action_result.parameter.classification | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'quarantine message group'
 
@@ -1215,15 +1271,14 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_group_id | string | `message group id` | |
 action_result.parameter.classification | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'restore message group'
 
@@ -1244,15 +1299,14 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_group_id | string | `message group id` | |
 action_result.parameter.classification | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'share with sublime'
 
@@ -1273,15 +1327,14 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_group_id | string | `message group id` | |
 action_result.parameter.report_label | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'trash message group'
 
@@ -1302,22 +1355,21 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_group_id | string | `message group id` | |
 action_result.parameter.classification | string | | |
 action_result.parameter.review_comment | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'analyze raw message'
 
 Analyze a raw EML message against rules and queries
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1333,26 +1385,24 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.matched_rules | numeric | | |
-action_result.summary.total_rules_evaluated | numeric | | |
-action_result.data.\*.rule_results | string | | |
-action_result.data.\*.query_results | string | | |
 action_result.parameter.vault_id | string | `vault id` | |
 action_result.parameter.base64_data | string | | |
 action_result.parameter.run_active_detection_rules | boolean | | |
 action_result.parameter.run_all_detection_rules | boolean | | |
 action_result.parameter.run_all_insights | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.rule_results | string | | |
+action_result.data.\*.query_results | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'render attachment image'
 
 Render image for attachment from raw base64 encoded bytes
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1366,22 +1416,27 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.screenshot_vault_id | string | `vault id` | |
-action_result.data.\*.hash | string | | |
 action_result.parameter.vault_id | string | `vault id` | |
 action_result.parameter.base64_data | string | | |
 action_result.parameter.file_type | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.hash | string | | |
+action_result.summary.screenshot_vault_id | string | | |
+action_result.summary.analyzed | boolean | | True False |
+action_result.summary.disposition | string | | |
+action_result.summary.confidence | string | | |
+action_result.summary.brand_name | string | | |
+action_result.summary.effective_url | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get attack score raw'
 
 Evaluate attack score for a raw message
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1394,18 +1449,16 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.verdict | string | | |
-action_result.summary.score | numeric | | |
+action_result.parameter.vault_id | string | `vault id` | |
+action_result.parameter.base64_data | string | | |
 action_result.data.\*.score | numeric | | |
 action_result.data.\*.graymail_score | numeric | | |
 action_result.data.\*.verdict | string | | |
 action_result.data.\*.top_signals | string | | |
-action_result.parameter.vault_id | string | `vault id` | |
-action_result.parameter.base64_data | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'create message'
 
@@ -1434,13 +1487,8 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.message_id | string | `message id` | |
-action_result.data.\*.id | string | `message id` | |
-action_result.data.\*.canonical_id | string | | |
-action_result.data.\*.preview.subject | string | | |
-action_result.data.\*.preview.sender_email_address | string | `email` | |
 action_result.parameter.vault_id | string | `vault id` | |
 action_result.parameter.base64_data | string | | |
 action_result.parameter.mailbox_email_address | string | `email` | |
@@ -1452,15 +1500,19 @@ action_result.parameter.folder | string | | |
 action_result.parameter.labels | string | | |
 action_result.parameter.route_type | string | | |
 action_result.parameter.message_type | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | `message id` | |
+action_result.data.\*.canonical_id | string | | |
+action_result.data.\*.preview.subject | string | | |
+action_result.data.\*.preview.sender_email_address | string | `email` | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get action state'
 
 Retrieve the state of manual actions for a canonical group
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1474,26 +1526,26 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.message_group_id | string | `message group id` | |
+action_result.parameter.limit | numeric | | |
+action_result.parameter.offset | numeric | | |
 action_result.data.\*.id | string | | |
 action_result.data.\*.action_type | string | | |
 action_result.data.\*.change | string | | |
 action_result.data.\*.created_at | string | | |
 action_result.data.\*.attempts | numeric | | |
 action_result.data.\*.total | numeric | | |
-action_result.parameter.message_group_id | string | `message group id` | |
-action_result.parameter.limit | numeric | | |
-action_result.parameter.offset | numeric | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get message'
 
 Retrieve a message by ID
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1505,8 +1557,9 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.message_id | string | `message id` | |
 action_result.data.\*.id | string | `message id` | |
 action_result.data.\*.canonical_id | string | | |
 action_result.data.\*.subject | string | | |
@@ -1515,9 +1568,8 @@ action_result.data.\*.sender.display_name | string | | |
 action_result.data.\*.created_at | string | | |
 action_result.data.\*.mailbox.email | string | `email` | |
 action_result.data.\*.recipients | string | | |
-action_result.parameter.message_id | string | `message id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'action message'
 
@@ -1538,22 +1590,21 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_id | string | `message id` | |
 action_result.parameter.action | string | | |
 action_result.parameter.share_with_sublime | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'analyze message by id'
 
 Analyze an existing message by its ID against rules and queries
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1568,25 +1619,23 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.matched_rules | numeric | | |
-action_result.summary.total_rules_evaluated | numeric | | |
-action_result.data.\*.rule_results | string | | |
-action_result.data.\*.query_results | string | | |
 action_result.parameter.message_id | string | `message id` | |
 action_result.parameter.run_active_detection_rules | boolean | | |
 action_result.parameter.run_all_detection_rules | boolean | | |
 action_result.parameter.run_all_insights | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.rule_results | string | | |
+action_result.data.\*.query_results | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get asa report'
 
 Retrieve ASA (Attack Surface Assessment) report for a message
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1598,24 +1647,23 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.verdict | string | | |
+action_result.parameter.message_id | string | `message id` | |
 action_result.data.\*.verdict | string | | |
 action_result.data.\*.summary | string | | |
 action_result.data.\*.full_explanation | string | | |
 action_result.data.\*.attack_type | string | | |
 action_result.data.\*.tactics_and_techniques | string | | |
-action_result.parameter.message_id | string | `message id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get asa verdict'
 
 Retrieve ASA verdict for a message (malicious, spam, graymail, likely_benign, benign, unknown)
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1627,20 +1675,19 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.verdict | string | | |
-action_result.data.\*.verdict | string | | |
 action_result.parameter.message_id | string | `message id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.verdict | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get attachment image'
 
 Retrieve image of a PDF attachment by MD5 hash
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1653,21 +1700,26 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.screenshot_vault_id | string | `vault id` | |
-action_result.data.\*.hash | string | `md5` | |
 action_result.parameter.message_id | string | `message id` | |
 action_result.parameter.attachment_hash | string | `md5` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.hash | string | `md5` | |
+action_result.summary.screenshot_vault_id | string | | |
+action_result.summary.analyzed | boolean | | True False |
+action_result.summary.disposition | string | | |
+action_result.summary.confidence | string | | |
+action_result.summary.brand_name | string | | |
+action_result.summary.effective_url | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get attack score'
 
 Evaluate attack score against an existing message
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1679,24 +1731,22 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.verdict | string | | |
-action_result.summary.score | numeric | | |
+action_result.parameter.message_id | string | `message id` | |
 action_result.data.\*.score | numeric | | |
 action_result.data.\*.graymail_score | numeric | | |
 action_result.data.\*.verdict | string | | |
 action_result.data.\*.top_signals | string | | |
-action_result.parameter.message_id | string | `message id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get message image'
 
 Retrieve rendered image of a message
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1708,21 +1758,26 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.screenshot_vault_id | string | `vault id` | |
-action_result.data.\*.mime_type | string | | |
-action_result.data.\*.is_empty_body | boolean | | |
 action_result.parameter.message_id | string | `message id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.mime_type | string | | |
+action_result.data.\*.is_empty_body | boolean | | True False |
+action_result.summary.screenshot_vault_id | string | | |
+action_result.summary.analyzed | boolean | | True False |
+action_result.summary.disposition | string | | |
+action_result.summary.confidence | string | | |
+action_result.summary.brand_name | string | | |
+action_result.summary.effective_url | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get message eml'
 
 Retrieve raw EML content of a message
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1734,19 +1789,19 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.vault_id | string | `vault id` | |
 action_result.parameter.message_id | string | `message id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.summary.vault_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get message image link'
 
 Retrieve a temporary link to the image of a message
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1760,15 +1815,15 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.data.\*.url | string | `url` | |
-action_result.data.\*.expires_in | numeric | | |
 action_result.parameter.message_id | string | `message id` | |
 action_result.parameter.link_duration_seconds | numeric | | |
 action_result.parameter.platform_link | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.url | string | `url` | |
+action_result.data.\*.expires_in | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'set access justification'
 
@@ -1788,19 +1843,19 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.parameter.message_id | string | `message id` | |
 action_result.parameter.justification | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get message data model'
 
 Retrieve the message's Message Data Model (MDM)
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1812,15 +1867,15 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.message_id | string | `message id` | |
 action_result.data.\*.sender.email.email | string | `email` | |
 action_result.data.\*.subject.subject | string | | |
-action_result.data.\*.\_meta.canonical_id | string | | |
-action_result.data.\*.\_meta.id | string | | |
-action_result.parameter.message_id | string | `message id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.meta.canonical_id | string | | |
+action_result.data.\*.meta.id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'restore message'
 
@@ -1839,13 +1894,12 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_id | string | `message id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'trash message'
 
@@ -1864,20 +1918,19 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_id | string | | |
-action_result.data.\*.task_id | string | | |
 action_result.parameter.message_id | string | `message id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.task_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list rules'
 
 List all rules in the organization
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -1892,25 +1945,23 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_rules | numeric | | |
-action_result.summary.rules_returned | numeric | | |
+action_result.parameter.search | string | | |
+action_result.parameter.in_feed | boolean | | |
+action_result.parameter.limit | numeric | | |
+action_result.parameter.offset | numeric | | |
 action_result.data.\*.id | string | `rule id` | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.severity | string | | |
-action_result.data.\*.active | boolean | | |
+action_result.data.\*.active | boolean | | True False |
 action_result.data.\*.description | string | | |
 action_result.data.\*.source | string | | |
 action_result.data.\*.tags | string | | |
 action_result.data.\*.created_at | string | | |
 action_result.data.\*.updated_at | string | | |
-action_result.parameter.search | string | | |
-action_result.parameter.in_feed | boolean | | |
-action_result.parameter.limit | numeric | | |
-action_result.parameter.offset | numeric | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'create rule'
 
@@ -1952,13 +2003,8 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.rule_id | string | `rule id` | |
-action_result.data.\*.id | string | `rule id` | |
-action_result.data.\*.name | string | | |
-action_result.data.\*.severity | string | | |
-action_result.data.\*.active | boolean | | |
 action_result.parameter.name | string | | |
 action_result.parameter.source | string | | |
 action_result.parameter.type | string | | |
@@ -1983,15 +2029,19 @@ action_result.parameter.triage_flagged_messages | boolean | | |
 action_result.parameter.triage_classification_changes | boolean | | |
 action_result.parameter.triage_dlp_rule_matched | boolean | | |
 action_result.parameter.run_triage_on_excluded_messages | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | `rule id` | |
+action_result.data.\*.name | string | | |
+action_result.data.\*.severity | string | | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list rule history'
 
 List history for rules across the organization
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2009,9 +2059,8 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.data.\*.history | string | | |
 action_result.parameter.start_time | string | | |
 action_result.parameter.end_time | string | | |
 action_result.parameter.active | boolean | | |
@@ -2019,15 +2068,16 @@ action_result.parameter.in_feed | boolean | | |
 action_result.parameter.type | string | | |
 action_result.parameter.count | numeric | | |
 action_result.parameter.offset | numeric | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.history | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'validate rule'
 
 Validate rule MQL syntax without creating
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2040,16 +2090,16 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.data.\*.validation_error | string | | |
-action_result.data.\*.is_org_dependent | boolean | | |
-action_result.data.\*.functions | string | | |
-action_result.data.\*.list | string | | |
 action_result.parameter.name | string | | |
 action_result.parameter.source | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.validation_error | string | | |
+action_result.data.\*.is_org_dependent | boolean | | True False |
+action_result.data.\*.functions | string | | |
+action_result.data.\*.list | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'delete rule'
 
@@ -2068,18 +2118,18 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.parameter.rule_id | string | `rule id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get rule'
 
 Retrieve a rule by ID
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2091,18 +2141,18 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.rule_id | string | `rule id` | |
 action_result.data.\*.id | string | `rule id` | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.severity | string | | |
-action_result.data.\*.active | boolean | | |
+action_result.data.\*.active | boolean | | True False |
 action_result.data.\*.source | string | | |
 action_result.data.\*.description | string | | |
 action_result.data.\*.tags | string | | |
-action_result.parameter.rule_id | string | `rule id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'update rule'
 
@@ -2143,12 +2193,8 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.data.\*.id | string | `rule id` | |
-action_result.data.\*.name | string | | |
-action_result.data.\*.severity | string | | |
-action_result.data.\*.active | boolean | | |
 action_result.parameter.rule_id | string | `rule id` | |
 action_result.parameter.name | string | | |
 action_result.parameter.source | string | | |
@@ -2172,8 +2218,12 @@ action_result.parameter.triage_flagged_messages | boolean | | |
 action_result.parameter.triage_classification_changes | boolean | | |
 action_result.parameter.triage_dlp_rule_matched | boolean | | |
 action_result.parameter.run_triage_on_excluded_messages | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | `rule id` | |
+action_result.data.\*.name | string | | |
+action_result.data.\*.severity | string | | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'activate rule'
 
@@ -2192,14 +2242,14 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.rule_id | string | `rule id` | |
 action_result.data.\*.id | string | `rule id` | |
 action_result.data.\*.name | string | | |
-action_result.data.\*.active | boolean | | |
-action_result.parameter.rule_id | string | `rule id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'deactivate rule'
 
@@ -2218,21 +2268,21 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.rule_id | string | `rule id` | |
 action_result.data.\*.id | string | `rule id` | |
 action_result.data.\*.name | string | | |
-action_result.data.\*.active | boolean | | |
-action_result.parameter.rule_id | string | `rule id` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get rule history'
 
 Retrieve history of a specific rule
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2247,24 +2297,24 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.data.\*.rule.id | string | `rule id` | |
-action_result.data.\*.rule.name | string | | |
-action_result.data.\*.flagged_message_groups_report.total | numeric | | |
 action_result.parameter.rule_id | string | `rule id` | |
 action_result.parameter.start_time | string | | |
 action_result.parameter.end_time | string | | |
 action_result.parameter.use_rule_last_updated_as_created_at | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.rule.id | string | `rule id` | |
+action_result.data.\*.rule.name | string | | |
+action_result.data.\*.flagged_message_groups_report.total | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get task'
 
 Retrieve task status by ID
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2276,23 +2326,22 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.task_state | string | | |
+action_result.parameter.task_id | string | | |
 action_result.data.\*.id | string | | |
 action_result.data.\*.state | string | | |
 action_result.data.\*.created_at | string | | |
 action_result.data.\*.error | string | | |
-action_result.parameter.task_id | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list user reports'
 
 List user-submitted phishing reports
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2306,18 +2355,17 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_reports | numeric | | |
+action_result.parameter.start_time | string | | |
+action_result.parameter.end_time | string | | |
+action_result.parameter.limit | numeric | | |
 action_result.data.\*.reporter | string | | |
 action_result.data.\*.channel | string | | |
 action_result.data.\*.reported_at | string | | |
 action_result.data.\*.reported_message_canonical_id | string | | |
-action_result.parameter.start_time | string | | |
-action_result.parameter.end_time | string | | |
-action_result.parameter.limit | numeric | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'assign role'
 
@@ -2337,19 +2385,19 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.parameter.email_address | string | `email` | |
 action_result.parameter.role_title | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list scim resource types'
 
 List SCIM resource types
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2359,22 +2407,21 @@ No parameters are required for this action
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_resource_types | numeric | | |
 action_result.data.\*.id | string | | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.endpoint | string | | |
 action_result.data.\*.description | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get scim resource type'
 
 Get a single SCIM resource type
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2386,22 +2433,22 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.resource_type_id | string | | |
 action_result.data.\*.id | string | | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.endpoint | string | | |
 action_result.data.\*.schema | string | | |
-action_result.parameter.resource_type_id | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list scim users'
 
 List SCIM provisioned users
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2415,19 +2462,18 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_results | numeric | | |
+action_result.parameter.count | numeric | | |
+action_result.parameter.start_index | numeric | | |
+action_result.parameter.filter | string | | |
 action_result.data.\*.id | string | | |
 action_result.data.\*.userName | string | `email` | |
 action_result.data.\*.name.givenName | string | | |
 action_result.data.\*.name.familyName | string | | |
-action_result.data.\*.active | boolean | | |
-action_result.parameter.count | numeric | | |
-action_result.parameter.start_index | numeric | | |
-action_result.parameter.filter | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'create scim user'
 
@@ -2450,26 +2496,25 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.user_id | string | | |
-action_result.data.\*.id | string | | |
-action_result.data.\*.userName | string | `email` | |
-action_result.data.\*.active | boolean | | |
 action_result.parameter.user_name | string | `email` | |
 action_result.parameter.given_name | string | | |
 action_result.parameter.family_name | string | | |
 action_result.parameter.email | string | `email` | |
 action_result.parameter.active | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.userName | string | `email` | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get scim user'
 
 Get a SCIM user by ID
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2481,16 +2526,16 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.user_id | string | | |
 action_result.data.\*.id | string | | |
 action_result.data.\*.userName | string | `email` | |
 action_result.data.\*.name.givenName | string | | |
 action_result.data.\*.name.familyName | string | | |
-action_result.data.\*.active | boolean | | |
-action_result.parameter.user_id | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'delete scim user'
 
@@ -2509,11 +2554,11 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.parameter.user_id | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'update scim user'
 
@@ -2537,19 +2582,19 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.data.\*.id | string | | |
-action_result.data.\*.userName | string | `email` | |
-action_result.data.\*.active | boolean | | |
 action_result.parameter.user_id | string | | |
 action_result.parameter.user_name | string | `email` | |
 action_result.parameter.given_name | string | | |
 action_result.parameter.family_name | string | | |
 action_result.parameter.email | string | `email` | |
 action_result.parameter.active | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.userName | string | `email` | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'patch scim user'
 
@@ -2569,22 +2614,22 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.data.\*.id | string | | |
-action_result.data.\*.userName | string | `email` | |
-action_result.data.\*.active | boolean | | |
 action_result.parameter.user_id | string | | |
 action_result.parameter.operations_json | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.userName | string | `email` | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'validate scim auth'
 
 Validate SCIM-specific authentication
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2594,18 +2639,18 @@ No parameters are required for this action
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
 action_result.data.\*.user_email | string | `email` | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'list scim schemas'
 
 List SCIM schemas
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2615,21 +2660,20 @@ No parameters are required for this action
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.summary.total_schemas | numeric | | |
 action_result.data.\*.id | string | | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.description | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get scim schema'
 
 Get a single SCIM schema by ID
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2641,22 +2685,22 @@ PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
+action_result.parameter.schema_id | string | | |
 action_result.data.\*.id | string | | |
 action_result.data.\*.name | string | | |
 action_result.data.\*.description | string | | |
 action_result.data.\*.attributes | string | | |
-action_result.parameter.schema_id | string | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ## action: 'get scim service provider config'
 
 Get SCIM service provider configuration
 
 Type: **investigate** <br>
-Read only: **True**
+Read only: **False**
 
 #### Action Parameters
 
@@ -2666,16 +2710,377 @@ No parameters are required for this action
 
 DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 --------- | ---- | -------- | --------------
-action_result.status | string | | |
+action_result.status | string | | success failure |
 action_result.message | string | | |
-action_result.data.\*.patch.supported | boolean | | |
-action_result.data.\*.bulk.supported | boolean | | |
-action_result.data.\*.filter.supported | boolean | | |
-action_result.data.\*.sort.supported | boolean | | |
-action_result.data.\*.changePassword.supported | boolean | | |
-action_result.data.\*.etag.supported | boolean | | |
-summary.total_objects_successful | numeric | | |
-summary.total_objects | numeric | | |
+action_result.data.\*.patch.supported | boolean | | True False |
+action_result.data.\*.bulk.supported | boolean | | True False |
+action_result.data.\*.filter.supported | boolean | | True False |
+action_result.data.\*.sort.supported | boolean | | True False |
+action_result.data.\*.changePassword.supported | boolean | | True False |
+action_result.data.\*.etag.supported | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'list child organizations'
+
+List child organizations under the calling organization
+
+Type: **investigate** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**active** | optional | Filter by active status (omit for all) | boolean | |
+**limit** | optional | Maximum number of organizations to return (max: 500) | numeric | |
+**offset** | optional | Zero-based offset for pagination | numeric | |
+**max_depth** | optional | Hierarchy depth to descend (1 = direct children) | numeric | |
+**parent_org_id** | optional | Restrict results to descendants of this organization ID | string | |
+**search** | optional | Case-insensitive substring filter on organization name | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.active | boolean | | |
+action_result.parameter.limit | numeric | | |
+action_result.parameter.offset | numeric | | |
+action_result.parameter.max_depth | numeric | | |
+action_result.parameter.parent_org_id | string | | |
+action_result.parameter.search | string | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.name | string | | |
+action_result.data.\*.active | boolean | | True False |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'create child organization'
+
+Create a child organization under the calling organization
+
+Type: **generic** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**name** | required | Display name for the child organization | string | |
+**licenses_json** | optional | Optional JSON array/object of licenses to provision | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.name | string | | |
+action_result.parameter.licenses_json | string | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.name | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'patch child organization'
+
+Update a child organization's name and/or delegation settings
+
+Type: **generic** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**organization_id** | required | Child organization ID | string | |
+**name** | optional | Updated display name | string | |
+**delegation_json** | optional | Optional JSON object of delegation settings to merge into the patch body | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.organization_id | string | | |
+action_result.parameter.name | string | | |
+action_result.parameter.delegation_json | string | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.name | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'patch child organization licensing'
+
+Apply a license transition to a child organization
+
+Type: **generic** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**organization_id** | required | Child organization ID | string | |
+**licensing_json** | required | JSON body for the desired license transition | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.organization_id | string | | |
+action_result.parameter.licensing_json | string | | |
+action_result.data.\*.id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'bulk patch child organization licensing'
+
+Bulk update licensing for up to 200 child organizations
+
+Type: **generic** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**bulk_licensing_json** | required | JSON body for bulk license transitions (up to 200 orgs) | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.bulk_licensing_json | string | | |
+action_result.data.\*.results.\* | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'list email bombs'
+
+List email bombs
+
+Type: **investigate** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**active** | optional | Filter by active status | boolean | |
+**mailbox_id** | optional | Filter by mailbox ID | string | |
+**limit** | optional | Maximum number of email bombs to return (max: 500) | numeric | |
+**offset** | optional | Zero-based offset for pagination | numeric | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.active | boolean | | |
+action_result.parameter.mailbox_id | string | | |
+action_result.parameter.limit | numeric | | |
+action_result.parameter.offset | numeric | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.active | boolean | | True False |
+action_result.data.\*.message_count | numeric | | |
+action_result.data.\*.created_at | string | | |
+action_result.data.\*.end_time | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'create email bomb'
+
+Create or extend an email bomb for a mailbox time range
+
+Type: **generic** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**mailbox_id** | required | Mailbox ID to declare the email bomb for | string | |
+**start_time** | required | Start of the email bomb time range (ISO 8601 UTC) | string | |
+**end_time** | required | End of the email bomb time range (ISO 8601 UTC) | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.mailbox_id | string | | |
+action_result.parameter.start_time | string | | |
+action_result.parameter.end_time | string | | |
+action_result.data.\*.created_bomb_id | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'get email bomb'
+
+Get an email bomb by ID
+
+Type: **investigate** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**email_bomb_id** | required | Email bomb ID | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.email_bomb_id | string | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.active | boolean | | True False |
+action_result.data.\*.message_count | numeric | | |
+action_result.data.\*.created_at | string | | |
+action_result.data.\*.end_time | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'dismiss email bomb'
+
+Dismiss an email bomb
+
+Type: **correct** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**email_bomb_id** | required | Email bomb ID | string | |
+**review_comment** | optional | Optional dismiss review comment | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.email_bomb_id | string | | |
+action_result.parameter.review_comment | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'list dlp release requests'
+
+List DLP release requests
+
+Type: **investigate** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**status** | optional | Optional status filter | string | |
+**limit** | optional | Maximum number of requests to return (max: 500) | numeric | |
+**offset** | optional | Zero-based offset for pagination | numeric | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.status | string | | |
+action_result.parameter.limit | numeric | | |
+action_result.parameter.offset | numeric | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.status | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'get dlp release request'
+
+Get a DLP release request by ID
+
+Type: **investigate** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**release_request_id** | required | DLP release request ID | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.release_request_id | string | | |
+action_result.data.\*.id | string | | |
+action_result.data.\*.status | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'approve dlp release request'
+
+Approve a DLP release request
+
+Type: **correct** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**release_request_id** | required | DLP release request ID | string | |
+**comment** | optional | Optional approval comment | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.release_request_id | string | | |
+action_result.parameter.comment | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
+
+## action: 'deny dlp release request'
+
+Deny a DLP release request
+
+Type: **correct** <br>
+Read only: **False**
+
+#### Action Parameters
+
+PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
+--------- | -------- | ----------- | ---- | --------
+**release_request_id** | required | DLP release request ID | string | |
+**comment** | optional | Optional denial comment | string | |
+
+#### Action Output
+
+DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
+--------- | ---- | -------- | --------------
+action_result.status | string | | success failure |
+action_result.message | string | | |
+action_result.parameter.release_request_id | string | | |
+action_result.parameter.comment | string | | |
+summary.total_objects | numeric | | 1 |
+summary.total_objects_successful | numeric | | 1 |
 
 ______________________________________________________________________
 
