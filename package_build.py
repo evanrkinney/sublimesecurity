@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright (c) 2026 Splunk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#!/usr/bin/env python3
 """Wrapper around ``soarapps package build`` that injects a legacy-spawn
 entry-point shim into the .tgz so SOAR builds still using the pre-SDK-3.x
 spawn (``BaseConnector.__subclasses__()[0]``) can launch the app. New SOAR
@@ -27,7 +27,8 @@ import tempfile
 from io import BytesIO
 from pathlib import Path
 
-from soar_sdk.cli.cli import app as cli_app  # noqa: E402
+from soar_sdk.cli.cli import app as cli_app
+
 
 _LEGACY_SHIM_SOURCE = '''\
 """Legacy-spawn entry point for SOAR builds predating SDK 3.x dispatch.
@@ -87,6 +88,11 @@ from src.app import app as _SDK_APP  # noqa: E402
 '''
 
 
+# Community App Store packages previously validated with this copyright string
+# (not the bare SPDX id hatchling requires in pyproject.toml).
+_COMMUNITY_LICENSE = "Copyright (c) 2026 Splunk SOAR Community"
+
+
 def _shim_filename_from_manifest(manifest_bytes: bytes) -> str:
     import json
 
@@ -94,13 +100,34 @@ def _shim_filename_from_manifest(manifest_bytes: bytes) -> str:
     return f"{m['package_name']}_connector.py"
 
 
+def _rewrite_manifest_license(manifest_bytes: bytes) -> bytes:
+    """Set manifest ``license`` to the Community copyright string."""
+    import json
+
+    m = json.loads(manifest_bytes)
+    m["license"] = _COMMUNITY_LICENSE
+    return json.dumps(m, indent=4).encode("utf-8") + b"\n"
+
+
+def _rewrite_notice_header(notice_bytes: bytes) -> bytes:
+    """Keep SDK third-party attributions; use Community copyright as line 2."""
+    text = notice_bytes.decode("utf-8")
+    lines = text.splitlines(True)
+    if len(lines) >= 2 and lines[0].startswith("Splunk SOAR App:"):
+        lines[1] = f"{_COMMUNITY_LICENSE}\n"
+        return "".join(lines).encode("utf-8")
+    return f"Splunk SOAR App: Sublime Security\n{_COMMUNITY_LICENSE}\n".encode()
+
+
 def _inject_legacy_shim(tgz_path: Path) -> None:
-    """Add the legacy-spawn shim into the .tgz at the package root.
+    """Add the legacy-spawn shim and Community license strings into the .tgz.
 
     The SDK's ``soarapps package build`` only packages ``src/``, logos,
     templates, README/LICENSE/NOTICE, release_notes, and wheels — it does not
     include arbitrary top-level Python files. We post-process the .tgz to add
-    our shim at ``<App Name>/<package_name>_connector.py``.
+    our shim at ``<App Name>/<package_name>_connector.py``, and rewrite the
+    packaged manifest/NOTICE license lines to the Community copyright string
+    that previously passed App Store validation.
     """
     if not tgz_path.exists():
         raise SystemExit(f"Expected built package at {tgz_path}, not found.")
@@ -109,10 +136,7 @@ def _inject_legacy_shim(tgz_path: Path) -> None:
         members = src_tar.getmembers()
         top_dirs = sorted({m.name.split("/", 1)[0] for m in members if "/" in m.name})
         if not top_dirs:
-            raise SystemExit(
-                f"Could not detect app root inside {tgz_path}. Members: "
-                f"{[m.name for m in members[:5]]}..."
-            )
+            raise SystemExit(f"Could not detect app root inside {tgz_path}. Members: {[m.name for m in members[:5]]}...")
         if len(top_dirs) > 1:
             raise SystemExit(f"Multiple top-level dirs found in {tgz_path}: {top_dirs}")
         app_root = top_dirs[0]
@@ -121,15 +145,14 @@ def _inject_legacy_shim(tgz_path: Path) -> None:
         manifest_fh = src_tar.extractfile(manifest_member)
         if manifest_fh is None:
             raise SystemExit("Could not read manifest.json from existing tarball.")
-        manifest_bytes = manifest_fh.read()
+        manifest_bytes = _rewrite_manifest_license(manifest_fh.read())
 
         shim_filename = _shim_filename_from_manifest(manifest_bytes)
         shim_path_in_tar = f"{app_root}/{shim_filename}"
+        manifest_path_in_tar = f"{app_root}/manifest.json"
+        notice_path_in_tar = f"{app_root}/NOTICE"
 
-        if any(m.name == shim_path_in_tar for m in members):
-            print(f"  (shim already present at {shim_path_in_tar}; skipping inject)")
-            return
-
+        shim_already = any(m.name == shim_path_in_tar for m in members)
         shim_bytes = _LEGACY_SHIM_SOURCE.encode("utf-8")
 
         tmp_fd, tmp_name = tempfile.mkstemp(suffix=".tgz", dir=str(tgz_path.parent))
@@ -139,12 +162,31 @@ def _inject_legacy_shim(tgz_path: Path) -> None:
         try:
             with tarfile.open(tmp_path, "w:gz") as out_tar:
                 for m in members:
+                    if m.name == shim_path_in_tar:
+                        continue
+                    if m.name == manifest_path_in_tar:
+                        info = tarfile.TarInfo(manifest_path_in_tar)
+                        info.size = len(manifest_bytes)
+                        info.mode = 0o644
+                        out_tar.addfile(info, BytesIO(manifest_bytes))
+                        continue
+                    if m.name == notice_path_in_tar and m.isfile():
+                        raw = src_tar.extractfile(m).read()
+                        notice_bytes = _rewrite_notice_header(raw)
+                        info = tarfile.TarInfo(notice_path_in_tar)
+                        info.size = len(notice_bytes)
+                        info.mode = 0o644
+                        out_tar.addfile(info, BytesIO(notice_bytes))
+                        continue
                     if m.isfile():
                         data = src_tar.extractfile(m)
                         out_tar.addfile(m, data)
                     else:
                         out_tar.addfile(m)
 
+                # Always (re)add the shim. The loop skips any existing
+                # shim member so rebuilds of an already-shimmed .tgz do
+                # not drop *_connector.py.
                 info = tarfile.TarInfo(shim_path_in_tar)
                 info.size = len(shim_bytes)
                 info.mode = 0o644
@@ -158,9 +200,9 @@ def _inject_legacy_shim(tgz_path: Path) -> None:
                 pass
             raise
 
-    print(
-        f"  Injected legacy-spawn shim → {shim_path_in_tar} ({len(shim_bytes)} bytes)"
-    )
+    action = "Refreshed" if shim_already else "Injected"
+    print(f"  {action} legacy-spawn shim → {shim_path_in_tar} ({len(shim_bytes)} bytes)")
+    print(f"  Set packaged license → {_COMMUNITY_LICENSE}")
 
 
 def _output_path_from_argv() -> Path | None:

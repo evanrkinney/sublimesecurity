@@ -31,10 +31,11 @@ from .client import SublimeClient
 from .helpers import (
     extract_email,
     header_get,
-    safe_id,
     safe_filename,
+    safe_id,
     verify_sublime_signature,
 )
+
 
 logger = getLogger()
 
@@ -190,16 +191,12 @@ def _create_error_container(
                 status_resp.status_code,
             )
     except Exception as e:
-        logger.warning(
-            "Sublime webhook: could not set container status to 'error': %s", e
-        )
+        logger.warning("Sublime webhook: could not set container status to 'error': %s", e)
 
     return container_id
 
 
-def _build_artifact_from_webhook_message(
-    data: dict[str, Any], event: dict[str, Any], container_id: int
-) -> dict[str, Any]:
+def _build_artifact_from_webhook_message(data: dict[str, Any], event: dict[str, Any], container_id: int) -> dict[str, Any]:
     if not isinstance(data, dict):
         data = {}
 
@@ -239,16 +236,10 @@ def _build_artifact_from_webhook_message(
     recipient_count = len([e for e in to_emails + cc_emails + bcc_emails if e])
 
     reply_to_list = data.get("reply_to") or []
-    reply_to_emails = (
-        [extract_email(r) for r in (reply_to_list or []) if r]
-        if isinstance(reply_to_list, list)
-        else []
-    )
+    reply_to_emails = [extract_email(r) for r in (reply_to_list or []) if r] if isinstance(reply_to_list, list) else []
 
     mailbox_full = data.get("mailbox") or {}
-    mailbox_email = (
-        extract_email(mailbox_full) if isinstance(mailbox_full, dict) else ""
-    )
+    mailbox_email = extract_email(mailbox_full) if isinstance(mailbox_full, dict) else ""
     mailbox_ref = message.get("mailbox") or {}
 
     external = data.get("external") or {}
@@ -258,39 +249,17 @@ def _build_artifact_from_webhook_message(
     attack_score = data.get("attack_score")
     graymail_score = data.get("graymail_score")
     top_signals = data.get("attack_score_top_signals") or []
-    signal_categories = [
-        s.get("category", "")
-        for s in top_signals
-        if isinstance(s, dict) and s.get("category")
-    ]
-    signal_names = [
-        s.get("name", "") for s in top_signals if isinstance(s, dict) and s.get("name")
-    ]
+    signal_categories = [s.get("category", "") for s in top_signals if isinstance(s, dict) and s.get("category")]
+    signal_names = [s.get("name", "") for s in top_signals if isinstance(s, dict) and s.get("name")]
 
     flagged_rules = data.get("flagged_rules") or []
     triggered_actions = data.get("triggered_actions") or []
     rule_names = [r.get("name", "") for r in flagged_rules if isinstance(r, dict)]
     rule_ids = [r.get("id", "") for r in flagged_rules if isinstance(r, dict)]
-    rule_severities = [
-        r.get("severity", "")
-        for r in flagged_rules
-        if isinstance(r, dict) and r.get("severity")
-    ]
-    rule_tags = sorted(
-        {
-            t
-            for r in flagged_rules
-            if isinstance(r, dict)
-            for t in (r.get("tags") or [])
-            if t
-        }
-    )
+    rule_severities = [r.get("severity", "") for r in flagged_rules if isinstance(r, dict) and r.get("severity")]
+    rule_tags = sorted({t for r in flagged_rules if isinstance(r, dict) for t in (r.get("tags") or []) if t})
     action_types = [a.get("type", "") for a in triggered_actions if isinstance(a, dict)]
-    action_names = [
-        a.get("name", "")
-        for a in triggered_actions
-        if isinstance(a, dict) and a.get("name")
-    ]
+    action_names = [a.get("name", "") for a in triggered_actions if isinstance(a, dict) and a.get("name")]
 
     headers = data.get("headers") or {}
     if not isinstance(headers, dict):
@@ -300,33 +269,15 @@ def _build_artifact_from_webhook_message(
     header_in_reply_to = headers.get("in_reply_to", "") or ""
     header_references = headers.get("references", "") or ""
     auth_summary = headers.get("auth_summary") or {}
-    spf_result = (
-        (auth_summary.get("spf") or {}).get("pass")
-        if isinstance(auth_summary.get("spf"), dict)
-        else None
-    )
-    dkim_result = (
-        (auth_summary.get("dkim") or {}).get("pass")
-        if isinstance(auth_summary.get("dkim"), dict)
-        else None
-    )
-    dmarc_result = (
-        (auth_summary.get("dmarc") or {}).get("pass")
-        if isinstance(auth_summary.get("dmarc"), dict)
-        else None
-    )
+    spf_result = (auth_summary.get("spf") or {}).get("pass") if isinstance(auth_summary.get("spf"), dict) else None
+    dkim_result = (auth_summary.get("dkim") or {}).get("pass") if isinstance(auth_summary.get("dkim"), dict) else None
+    dmarc_result = (auth_summary.get("dmarc") or {}).get("pass") if isinstance(auth_summary.get("dmarc"), dict) else None
 
     attachments = data.get("attachments") or []
     if not isinstance(attachments, list):
         attachments = []
-    attachment_names = [
-        a.get("file_name", "")
-        for a in attachments
-        if isinstance(a, dict) and a.get("file_name")
-    ]
-    attachment_hashes = [
-        a.get("md5", "") for a in attachments if isinstance(a, dict) and a.get("md5")
-    ]
+    attachment_names = [a.get("file_name", "") for a in attachments if isinstance(a, dict) and a.get("file_name")]
+    attachment_hashes = [a.get("md5", "") for a in attachments if isinstance(a, dict) and a.get("md5")]
 
     links = data.get("links") or []
     if not isinstance(links, list):
@@ -346,14 +297,11 @@ def _build_artifact_from_webhook_message(
     cef = {
         "messageId": message.get("id", ""),
         "canonicalId": message.get("canonical_id", ""),
-        "externalMessageId": message.get("external_id", "")
-        or external.get("message_id", ""),
+        "externalMessageId": message.get("external_id", "") or external.get("message_id", ""),
         "messageSourceId": message.get("message_source_id", ""),
         "rfc822MessageId": header_message_id,
         "mailboxId": mailbox_ref.get("id", "") if isinstance(mailbox_ref, dict) else "",
-        "mailboxExternalId": (
-            mailbox_ref.get("external_id", "") if isinstance(mailbox_ref, dict) else ""
-        ),
+        "mailboxExternalId": (mailbox_ref.get("external_id", "") if isinstance(mailbox_ref, dict) else ""),
         "mailboxEmail": mailbox_email,
         "subject": subject,
         "subjectBase": subject_base,
@@ -376,20 +324,12 @@ def _build_artifact_from_webhook_message(
         "spfPass": spf_result,
         "dkimPass": dkim_result,
         "dmarcPass": dmarc_result,
-        "isInbound": bool(message_type.get("inbound"))
-        if isinstance(message_type, dict)
-        else None,
-        "isOutbound": bool(message_type.get("outbound"))
-        if isinstance(message_type, dict)
-        else None,
-        "isInternal": bool(message_type.get("internal"))
-        if isinstance(message_type, dict)
-        else None,
+        "isInbound": bool(message_type.get("inbound")) if isinstance(message_type, dict) else None,
+        "isOutbound": bool(message_type.get("outbound")) if isinstance(message_type, dict) else None,
+        "isInternal": bool(message_type.get("internal")) if isinstance(message_type, dict) else None,
         "attackScoreVerdict": attack_score_verdict,
         "attackScore": attack_score if isinstance(attack_score, (int, float)) else None,
-        "graymailScore": graymail_score
-        if isinstance(graymail_score, (int, float))
-        else None,
+        "graymailScore": graymail_score if isinstance(graymail_score, (int, float)) else None,
         "attackScoreTopSignals": ", ".join(signal_categories),
         "attackScoreTopSignalNames": ", ".join(signal_names),
         "flaggedRuleNames": ", ".join([n for n in rule_names if n]),
@@ -407,15 +347,10 @@ def _build_artifact_from_webhook_message(
     }
 
     return {
-        "name": subject
-        or f"Sublime message {message.get('id', '')}"
-        or "Sublime message",
+        "name": subject or f"Sublime message {message.get('id', '')}" or "Sublime message",
         "label": "email",
         "container_id": container_id,
-        "source_data_identifier": message.get("id")
-        or message.get("canonical_id")
-        or event.get("id")
-        or f"sublime-{int(time.time() * 1000)}",
+        "source_data_identifier": message.get("id") or message.get("canonical_id") or event.get("id") or f"sublime-{int(time.time() * 1000)}",
         "severity": "medium",
         "cef": {k: v for k, v in cef.items() if v is not None and v != ""},
         "cef_types": {
@@ -435,9 +370,7 @@ def _build_artifact_from_webhook_message(
     }
 
 
-def handle_sublime_webhook(
-    request: WebhookRequest, soar: SOARClient | None = None
-) -> WebhookResponse:
+def handle_sublime_webhook(request: WebhookRequest, soar: SOARClient | None = None) -> WebhookResponse:
     """Process an inbound Sublime Security webhook using ``request.asset``.
 
     Fail closed on signature verification issues. Avoids logging raw webhook
@@ -447,9 +380,7 @@ def handle_sublime_webhook(
     if asset is None:
         return _respond(
             500,
-            {
-                "error": "Failed to resolve asset configuration for signature verification"
-            },
+            {"error": "Failed to resolve asset configuration for signature verification"},
         )
 
     if request.method.upper() != "POST":
@@ -479,9 +410,7 @@ def handle_sublime_webhook(
     # (misconfiguration) — reject rather than silently accept.
     sig_header = header_get(request.headers, "X-Sublime-Signature")
     if signing_secret:
-        ok, reason = verify_sublime_signature(
-            sig_header, raw_bytes, signing_secret, signature_tolerance
-        )
+        ok, reason = verify_sublime_signature(sig_header, raw_bytes, signing_secret, signature_tolerance)
         if not ok:
             return _respond(401, {"error": f"signature verification failed: {reason}"})
     elif sig_header:
@@ -591,9 +520,7 @@ def handle_sublime_webhook(
             flagged_rules = []
 
         message_id = message.get("id") or block.get("id") or event_id or "unknown"
-        canonical_id = (
-            message.get("canonical_id") or block.get("canonical_id") or message_id
-        )
+        canonical_id = message.get("canonical_id") or block.get("canonical_id") or message_id
 
         subject = _derive_subject(block)
         first_rule_name = ""
@@ -621,12 +548,7 @@ def handle_sublime_webhook(
             "label": cfg_label,
             "severity": _derive_severity(flagged_rules),
             "sensitivity": cfg_sensitivity,
-            "tags": [
-                t
-                for r in flagged_rules
-                if isinstance(r, dict)
-                for t in (r.get("tags") or [])
-            ],
+            "tags": [t for r in flagged_rules if isinstance(r, dict) for t in (r.get("tags") or [])],
             "data": payload,
         }
 
@@ -650,11 +572,7 @@ def handle_sublime_webhook(
                 or ("already exists" in err_text_lower and "asset" in err_text_lower)
             )
             if c_resp.status_code == 400 and sdi_collision:
-                existing_id = (
-                    c_json.get("existing_container_id")
-                    if isinstance(c_json, dict)
-                    else None
-                )
+                existing_id = c_json.get("existing_container_id") if isinstance(c_json, dict) else None
                 if not existing_id:
                     existing_id = _lookup_container_id_by_sdi(
                         rest_base_url,
@@ -668,9 +586,7 @@ def handle_sublime_webhook(
                     container_id = existing_id
                     merged_into_existing = True
                 else:
-                    reason = (
-                        f"container dedup but lookup failed: HTTP {c_resp.status_code}"
-                    )
+                    reason = f"container dedup but lookup failed: HTTP {c_resp.status_code}"
                     err_cid = _create_error_container(
                         rest_base_url,
                         soar_headers,
@@ -737,9 +653,7 @@ def handle_sublime_webhook(
             continue
 
         try:
-            artifact = _build_artifact_from_webhook_message(
-                block, payload, container_id
-            )
+            artifact = _build_artifact_from_webhook_message(block, payload, container_id)
         except Exception as e:
             reason = f"artifact build exception: {e!s}"
             err_cid = _create_error_container(
@@ -841,11 +755,7 @@ def handle_sublime_webhook(
                     )
                     if va_resp.status_code in (200, 201):
                         va_json = va_resp.json() if va_resp.content else {}
-                        eml_vault_id = (
-                            va_json.get("vault_id")
-                            or va_json.get("hash")
-                            or va_json.get("id")
-                        )
+                        eml_vault_id = va_json.get("vault_id") or va_json.get("hash") or va_json.get("id")
                         if eml_vault_id:
                             requests.post(
                                 f"{rest_base_url}artifact",
@@ -895,9 +805,7 @@ def handle_sublime_webhook(
         results.append(result_entry)
 
     response_body: dict[str, Any] = {
-        "status": "success"
-        if not errors
-        else ("partial_success" if results else "error"),
+        "status": "success" if not errors else ("partial_success" if results else "error"),
         "event_id": event_id,
         "event_type": event_type,
         "containers_created": len(results),

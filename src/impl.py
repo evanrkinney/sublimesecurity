@@ -43,6 +43,7 @@ from .helpers import (
     save_to_vault,
 )
 
+
 logger = getLogger()
 
 
@@ -61,9 +62,7 @@ def _maybe_bool(params: Any, name: str) -> Any:
     return bool(val)
 
 
-def _summary(
-    soar: SOARClient, summary_cls: type[ActionOutput] | None, data: dict[str, Any]
-) -> None:
+def _summary(soar: SOARClient, summary_cls: type[ActionOutput] | None, data: dict[str, Any]) -> None:
     if summary_cls is None:
         return
     soar.set_summary(coerce_output(summary_cls, data))
@@ -90,9 +89,7 @@ def test_connectivity(soar: SOARClient, asset: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
-def upload_binary(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def upload_binary(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     file_bytes = get_file_bytes(
         soar,
         vault_id=_pget(params, "vault_id"),
@@ -101,8 +98,7 @@ def upload_binary(
     )
     if len(file_bytes) > consts.BINEXPLODE_MAX_FILE_SIZE_BYTES:
         raise ActionFailure(
-            f"File size ({len(file_bytes)} bytes) exceeds the maximum allowed size of "
-            f"{consts.BINEXPLODE_MAX_FILE_SIZE_BYTES} bytes"
+            f"File size ({len(file_bytes)} bytes) exceeds the maximum allowed size of {consts.BINEXPLODE_MAX_FILE_SIZE_BYTES} bytes"
         )
     body = {
         "file_contents": base64.b64encode(file_bytes).decode("utf-8"),
@@ -112,9 +108,7 @@ def upload_binary(
     return coerce_output(output_cls, response)
 
 
-def get_binexplode_results(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def get_binexplode_results(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     endpoint = consts.BINEXPLODE_SCAN_RESULT_ENDPOINT.format(id=safe_id(params.task_id))
     response = _client(asset).get(endpoint)
     results = response.get("results", []) if isinstance(response, dict) else []
@@ -165,9 +159,7 @@ def analyze_link(
 # ---------------------------------------------------------------------------
 
 
-def list_audit_events(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_audit_events(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {}
     if _pget(params, "start_time"):
         query["created_at[gte]"] = params.start_time
@@ -183,16 +175,12 @@ def list_audit_events(
     return coerce_many(output_cls, response.get("events", []))
 
 
-def list_audit_event_types(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_audit_event_types(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     response = _client(asset).get(consts.AUDIT_EVENT_TYPES_ENDPOINT)
     return coerce_many(output_cls, response.get("event_types", []))
 
 
-def get_audit_event(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_audit_event(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.AUDIT_EVENT_ENDPOINT.format(id=safe_id(params.event_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
@@ -202,9 +190,7 @@ def get_audit_event(
 # ---------------------------------------------------------------------------
 
 
-def start_hunt_job(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def start_hunt_job(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     body: dict[str, Any] = {
         "source": params.source,
         "range_start_time": params.range_start_time,
@@ -214,30 +200,19 @@ def start_hunt_job(
         body["name"] = params.name
     if _pget(params, "private"):
         body["private"] = True
-    for key in (
-        "triage_flagged",
-        "triage_reported",
-        "triage_email_bomb",
-        "triage_dlp_rule_matched",
-    ):
+    for key in ("triage_flagged", "triage_reported", "triage_email_bomb", "triage_dlp_rule_matched"):
         val = _maybe_bool(params, key)
         if val is not None:
             body[key] = val
-    return coerce_output(
-        output_cls, _client(asset).post(consts.HUNT_JOBS_ENDPOINT, json_data=body)
-    )
+    return coerce_output(output_cls, _client(asset).post(consts.HUNT_JOBS_ENDPOINT, json_data=body))
 
 
-def get_hunt_job(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_hunt_job(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.HUNT_JOB_ENDPOINT.format(id=safe_id(params.hunt_job_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def get_hunt_job_results(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def get_hunt_job_results(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     endpoint = consts.HUNT_JOB_RESULTS_ENDPOINT.format(id=safe_id(params.hunt_job_id))
     query = {
         "limit": clamp_limit(_pget(params, "limit")),
@@ -252,9 +227,7 @@ def get_hunt_job_results(
 # ---------------------------------------------------------------------------
 
 
-def list_lists(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_lists(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     # API requires entry_type; default to string while still allowing other enum values.
     query: dict[str, Any] = {"entry_type": _pget(params, "entry_type") or "string"}
     if _pget(params, "name"):
@@ -263,13 +236,9 @@ def list_lists(
     return coerce_many(output_cls, response.get("lists", []))
 
 
-def create_list(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def create_list(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     body = {"name": params.name, "description": params.description}
-    return coerce_output(
-        output_cls, _client(asset).post(consts.LISTS_ENDPOINT, json_data=body)
-    )
+    return coerce_output(output_cls, _client(asset).post(consts.LISTS_ENDPOINT, json_data=body))
 
 
 def delete_list(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
@@ -279,16 +248,12 @@ def delete_list(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
     return ActionOutput()
 
 
-def get_list(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_list(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.LIST_ENDPOINT.format(id=safe_id(params.list_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def patch_list(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def patch_list(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.LIST_ENDPOINT.format(id=safe_id(params.list_id))
     body = {"description": params.description}
     return coerce_output(output_cls, _client(asset).patch(endpoint, json_data=body))
@@ -313,9 +278,7 @@ def get_list_entries(
         for e in entries:
             writer.writerow([e])
         csv_bytes = buf.getvalue().encode("utf-8")
-        file_name = (
-            _pget(params, "csv_file_name") or f"list_{params.list_id}_entries.csv"
-        )
+        file_name = _pget(params, "csv_file_name") or f"list_{params.list_id}_entries.csv"
         vault_id = save_to_vault(soar, csv_bytes, file_name)
         summary["vault_id"] = vault_id
     _summary(soar, summary_cls, summary)
@@ -355,18 +318,14 @@ def delete_list_entry(params: Any, soar: SOARClient, asset: Any) -> ActionOutput
     return ActionOutput()
 
 
-def get_list_entry(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def get_list_entry(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     endpoint = consts.LIST_ENTRY_ENDPOINT.format(id=safe_id(params.list_id))
     raw = params.entry
     entries_to_check = parse_comma_list(raw) if "," in raw else [raw.strip()]
     results = []
     client = _client(asset)
     for entry in entries_to_check:
-        result, status_code = client.get(
-            endpoint, params={"string": entry}, return_status_code=True
-        )
+        result, status_code = client.get(endpoint, params={"string": entry}, return_status_code=True)
         if result is not None and status_code is not None and 200 <= status_code < 300:
             found = True
         elif status_code == 404:
@@ -389,14 +348,8 @@ def add_list_entry(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
 # ---------------------------------------------------------------------------
 
 
-def process_raw_message(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    b64_data = get_file_as_base64(
-        soar,
-        vault_id=_pget(params, "vault_id"),
-        base64_data=_pget(params, "base64_data"),
-    )
+def process_raw_message(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    b64_data = get_file_as_base64(soar, vault_id=_pget(params, "vault_id"), base64_data=_pget(params, "base64_data"))
     body: dict[str, Any] = {
         "raw_message": b64_data,
         "mailbox_email_address": params.mailbox_email_address,
@@ -420,16 +373,12 @@ def process_raw_message(
         body["labels"] = parse_comma_list(params.labels)
     if _pget(params, "message_type"):
         mt = params.message_type
-        body["message_type"] = (
-            {mt: True} if mt in ("inbound", "internal", "outbound") else {}
-        )
+        body["message_type"] = {mt: True} if mt in ("inbound", "internal", "outbound") else {}
     response = _client(asset).post(consts.RAW_MESSAGE_ANALYZE_ENDPOINT, json_data=body)
     return coerce_output(output_cls, response)
 
 
-def list_mailboxes(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_mailboxes(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {
         "limit": clamp_limit(_pget(params, "limit")),
         "offset": int(_pget(params, "offset") or 0),
@@ -440,12 +389,7 @@ def list_mailboxes(
         query["marked_active"] = bool(params.marked_active)
     if _pget(params, "search"):
         query["search"] = params.search
-    for key in (
-        "email_addresses",
-        "mailbox_types",
-        "sub_error_types",
-        "message_source_id",
-    ):
+    for key in ("email_addresses", "mailbox_types", "sub_error_types", "message_source_id"):
         if _pget(params, key):
             query[key] = getattr(params, key)
     response = _client(asset).get(consts.MAILBOXES_ENDPOINT, params=query)
@@ -457,9 +401,7 @@ def list_mailboxes(
 # ---------------------------------------------------------------------------
 
 
-def list_message_groups(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_message_groups(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {
         "limit": clamp_limit(_pget(params, "limit")),
         "offset": int(_pget(params, "offset") or 0),
@@ -502,52 +444,32 @@ def list_message_groups(
 
 
 def dismiss_message_groups(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
-    _client(asset).post(
-        consts.MESSAGE_GROUPS_DISMISS_ENDPOINT, json_data=build_review_body(params)
-    )
+    _client(asset).post(consts.MESSAGE_GROUPS_DISMISS_ENDPOINT, json_data=build_review_body(params))
     soar.set_message("Message groups dismissed successfully")
     return ActionOutput()
 
 
-def quarantine_message_groups(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    response = _client(asset).post(
-        consts.MESSAGE_GROUPS_QUARANTINE_ENDPOINT, json_data=build_review_body(params)
-    )
+def quarantine_message_groups(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    response = _client(asset).post(consts.MESSAGE_GROUPS_QUARANTINE_ENDPOINT, json_data=build_review_body(params))
     return coerce_output(output_cls, response)
 
 
-def graymail_message_groups(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    response = _client(asset).post(
-        consts.MESSAGE_GROUPS_GRAYMAIL_ENDPOINT, json_data=build_review_body(params)
-    )
+def graymail_message_groups(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    response = _client(asset).post(consts.MESSAGE_GROUPS_GRAYMAIL_ENDPOINT, json_data=build_review_body(params))
     return coerce_output(output_cls, response)
 
 
-def spam_message_groups(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    response = _client(asset).post(
-        consts.MESSAGE_GROUPS_SPAM_ENDPOINT, json_data=build_review_body(params)
-    )
+def spam_message_groups(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    response = _client(asset).post(consts.MESSAGE_GROUPS_SPAM_ENDPOINT, json_data=build_review_body(params))
     return coerce_output(output_cls, response)
 
 
-def restore_message_groups(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    response = _client(asset).post(
-        consts.MESSAGE_GROUPS_RESTORE_ENDPOINT, json_data=build_review_body(params)
-    )
+def restore_message_groups(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    response = _client(asset).post(consts.MESSAGE_GROUPS_RESTORE_ENDPOINT, json_data=build_review_body(params))
     return coerce_output(output_cls, response)
 
 
-def review_message_groups(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def review_message_groups(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     body: dict[str, Any] = {
         "message_group_ids": parse_comma_list(params.message_group_ids),
         "classification": params.classification,
@@ -558,15 +480,11 @@ def review_message_groups(
         body["review_comment"] = params.review_comment
     if _pget(params, "share_with_sublime"):
         body["share_with_sublime"] = True
-    response = _client(asset).post(
-        consts.MESSAGE_GROUPS_REVIEW_ENDPOINT, json_data=body
-    )
+    response = _client(asset).post(consts.MESSAGE_GROUPS_REVIEW_ENDPOINT, json_data=body)
     return coerce_output(output_cls, response)
 
 
-def search_message_groups(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def search_message_groups(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {
         "limit": clamp_limit(_pget(params, "limit")),
         "offset": int(_pget(params, "offset") or 0),
@@ -600,25 +518,17 @@ def search_message_groups(
     return coerce_many(output_cls, response.get("message_groups", []))
 
 
-def trash_message_groups(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    response = _client(asset).post(
-        consts.MESSAGE_GROUPS_TRASH_ENDPOINT, json_data=build_review_body(params)
-    )
+def trash_message_groups(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    response = _client(asset).post(consts.MESSAGE_GROUPS_TRASH_ENDPOINT, json_data=build_review_body(params))
     return coerce_output(output_cls, response)
 
 
-def get_message_group(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_message_group(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.MESSAGE_GROUP_ENDPOINT.format(id=safe_id(params.message_group_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def get_message_groups_siem_summary(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def get_message_groups_siem_summary(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {
         "limit": clamp_limit(_pget(params, "limit")),
         "offset": int(_pget(params, "offset") or 0),
@@ -627,9 +537,7 @@ def get_message_groups_siem_summary(
         query["created_at__gte"] = params.created_at_gte
     if _pget(params, "created_at_lt"):
         query["created_at__lt"] = params.created_at_lt
-    response = _client(asset).get(
-        consts.MESSAGE_GROUPS_SIEM_SUMMARY_ENDPOINT, params=query
-    )
+    response = _client(asset).get(consts.MESSAGE_GROUPS_SIEM_SUMMARY_ENDPOINT, params=query)
     groups = response.get("message_groups") or response.get("groups") or []
     if isinstance(response, list):
         groups = response
@@ -637,46 +545,26 @@ def get_message_groups_siem_summary(
 
 
 def dismiss_message_group(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
-    endpoint = consts.MESSAGE_GROUP_DISMISS_ENDPOINT.format(
-        id=safe_id(params.message_group_id)
-    )
-    _client(asset).post(
-        endpoint, json_data=build_review_body(params, include_ids=False)
-    )
+    endpoint = consts.MESSAGE_GROUP_DISMISS_ENDPOINT.format(id=safe_id(params.message_group_id))
+    _client(asset).post(endpoint, json_data=build_review_body(params, include_ids=False))
     soar.set_message("Message group dismissed successfully")
     return ActionOutput()
 
 
-def quarantine_message_group(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.MESSAGE_GROUP_QUARANTINE_ENDPOINT.format(
-        id=safe_id(params.message_group_id)
-    )
-    response = _client(asset).post(
-        endpoint, json_data=build_review_body(params, include_ids=False)
-    )
+def quarantine_message_group(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.MESSAGE_GROUP_QUARANTINE_ENDPOINT.format(id=safe_id(params.message_group_id))
+    response = _client(asset).post(endpoint, json_data=build_review_body(params, include_ids=False))
     return coerce_output(output_cls, response)
 
 
-def restore_message_group(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.MESSAGE_GROUP_RESTORE_ENDPOINT.format(
-        id=safe_id(params.message_group_id)
-    )
-    response = _client(asset).post(
-        endpoint, json_data=build_review_body(params, include_ids=False)
-    )
+def restore_message_group(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.MESSAGE_GROUP_RESTORE_ENDPOINT.format(id=safe_id(params.message_group_id))
+    response = _client(asset).post(endpoint, json_data=build_review_body(params, include_ids=False))
     return coerce_output(output_cls, response)
 
 
-def share_with_sublime(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.MESSAGE_GROUP_SHARE_ENDPOINT.format(
-        id=safe_id(params.message_group_id)
-    )
+def share_with_sublime(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.MESSAGE_GROUP_SHARE_ENDPOINT.format(id=safe_id(params.message_group_id))
     body: dict[str, Any] = {}
     if _pget(params, "report_label"):
         body["report_label"] = params.report_label
@@ -686,15 +574,9 @@ def share_with_sublime(
     return coerce_output(output_cls, response)
 
 
-def trash_message_group(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.MESSAGE_GROUP_TRASH_ENDPOINT.format(
-        id=safe_id(params.message_group_id)
-    )
-    response = _client(asset).post(
-        endpoint, json_data=build_review_body(params, include_ids=False)
-    )
+def trash_message_group(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.MESSAGE_GROUP_TRASH_ENDPOINT.format(id=safe_id(params.message_group_id))
+    response = _client(asset).post(endpoint, json_data=build_review_body(params, include_ids=False))
     return coerce_output(output_cls, response)
 
 
@@ -703,26 +585,13 @@ def trash_message_group(
 # ---------------------------------------------------------------------------
 
 
-def analyze_raw_message(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    b64_data = get_file_as_base64(
-        soar,
-        vault_id=_pget(params, "vault_id"),
-        base64_data=_pget(params, "base64_data"),
-    )
+def analyze_raw_message(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    b64_data = get_file_as_base64(soar, vault_id=_pget(params, "vault_id"), base64_data=_pget(params, "base64_data"))
     body: dict[str, Any] = {"raw_message": b64_data}
-    for key in (
-        "run_active_detection_rules",
-        "run_all_detection_rules",
-        "run_all_insights",
-    ):
+    for key in ("run_active_detection_rules", "run_all_detection_rules", "run_all_insights"):
         if _pget(params, key):
             body[key] = True
-    return coerce_output(
-        output_cls,
-        _client(asset).post(consts.MESSAGES_ANALYZE_ENDPOINT, json_data=body),
-    )
+    return coerce_output(output_cls, _client(asset).post(consts.MESSAGES_ANALYZE_ENDPOINT, json_data=body))
 
 
 def render_attachment_image(
@@ -732,17 +601,11 @@ def render_attachment_image(
     output_cls: type[ActionOutput],
     summary_cls: type[ActionOutput] | None = None,
 ) -> ActionOutput:
-    b64_data = get_file_as_base64(
-        soar,
-        vault_id=_pget(params, "vault_id"),
-        base64_data=_pget(params, "base64_data"),
-    )
+    b64_data = get_file_as_base64(soar, vault_id=_pget(params, "vault_id"), base64_data=_pget(params, "base64_data"))
     body: dict[str, Any] = {"raw": b64_data}
     if _pget(params, "file_type"):
         body["file_type"] = params.file_type
-    response = _client(asset).post(
-        consts.MESSAGES_ATTACHMENT_IMAGE_RAW_ENDPOINT, json_data=body
-    )
+    response = _client(asset).post(consts.MESSAGES_ATTACHMENT_IMAGE_RAW_ENDPOINT, json_data=body)
     summary: dict[str, Any] = {}
     for idx, img_bytes in enumerate(iter_image_bytes(response.get("data"))):
         vault_id = save_to_vault(soar, img_bytes, f"attachment_render_{idx}.png")
@@ -751,14 +614,8 @@ def render_attachment_image(
     return coerce_output(output_cls, response)
 
 
-def get_attack_score_raw(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    b64_data = get_file_as_base64(
-        soar,
-        vault_id=_pget(params, "vault_id"),
-        base64_data=_pget(params, "base64_data"),
-    )
+def get_attack_score_raw(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    b64_data = get_file_as_base64(soar, vault_id=_pget(params, "vault_id"), base64_data=_pget(params, "base64_data"))
     body = {"raw_message": b64_data}
     return coerce_output(
         output_cls,
@@ -766,14 +623,8 @@ def get_attack_score_raw(
     )
 
 
-def create_message(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    b64_data = get_file_as_base64(
-        soar,
-        vault_id=_pget(params, "vault_id"),
-        base64_data=_pget(params, "base64_data"),
-    )
+def create_message(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    b64_data = get_file_as_base64(soar, vault_id=_pget(params, "vault_id"), base64_data=_pget(params, "base64_data"))
     body: dict[str, Any] = {"raw_message": b64_data}
     for key in (
         "mailbox_email_address",
@@ -790,20 +641,12 @@ def create_message(
         body["labels"] = parse_comma_list(params.labels)
     if _pget(params, "message_type"):
         mt = params.message_type
-        body["message_type"] = (
-            {mt: True} if mt in ("inbound", "internal", "outbound") else {}
-        )
-    return coerce_output(
-        output_cls, _client(asset).post(consts.MESSAGES_CREATE_ENDPOINT, json_data=body)
-    )
+        body["message_type"] = {mt: True} if mt in ("inbound", "internal", "outbound") else {}
+    return coerce_output(output_cls, _client(asset).post(consts.MESSAGES_CREATE_ENDPOINT, json_data=body))
 
 
-def get_action_state(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
-    endpoint = consts.MESSAGE_GROUP_ACTION_STATE_ENDPOINT.format(
-        id=safe_id(params.message_group_id)
-    )
+def get_action_state(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
+    endpoint = consts.MESSAGE_GROUP_ACTION_STATE_ENDPOINT.format(id=safe_id(params.message_group_id))
     query = {
         "limit": min(int(_pget(params, "limit") or 10), 50),
         "offset": int(_pget(params, "offset") or 0),
@@ -812,16 +655,12 @@ def get_action_state(
     return coerce_many(output_cls, response.get("actions", []))
 
 
-def get_message(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_message(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.MESSAGE_ENDPOINT.format(id=safe_id(params.message_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def action_message(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def action_message(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.MESSAGE_ACTIONS_ENDPOINT.format(id=safe_id(params.message_id))
     body: dict[str, Any] = {}
     if _pget(params, "action"):
@@ -831,33 +670,21 @@ def action_message(
     return coerce_output(output_cls, _client(asset).post(endpoint, json_data=body))
 
 
-def analyze_message_by_id(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.MESSAGE_ANALYZE_BY_ID_ENDPOINT.format(
-        id=safe_id(params.message_id)
-    )
+def analyze_message_by_id(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.MESSAGE_ANALYZE_BY_ID_ENDPOINT.format(id=safe_id(params.message_id))
     body: dict[str, Any] = {}
-    for key in (
-        "run_active_detection_rules",
-        "run_all_detection_rules",
-        "run_all_insights",
-    ):
+    for key in ("run_active_detection_rules", "run_all_detection_rules", "run_all_insights"):
         if _pget(params, key):
             body[key] = True
     return coerce_output(output_cls, _client(asset).post(endpoint, json_data=body))
 
 
-def get_asa_report(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_asa_report(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.MESSAGE_ASA_REPORT_ENDPOINT.format(id=safe_id(params.message_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def get_asa_verdict(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_asa_verdict(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.MESSAGE_ASA_VERDICT_ENDPOINT.format(id=safe_id(params.message_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
@@ -869,26 +696,18 @@ def get_attachment_image(
     output_cls: type[ActionOutput],
     summary_cls: type[ActionOutput] | None = None,
 ) -> ActionOutput:
-    endpoint = consts.MESSAGE_ATTACHMENT_IMAGE_ENDPOINT.format(
-        id=safe_id(params.message_id), hash=safe_id(params.attachment_hash)
-    )
+    endpoint = consts.MESSAGE_ATTACHMENT_IMAGE_ENDPOINT.format(id=safe_id(params.message_id), hash=safe_id(params.attachment_hash))
     response = _client(asset).get(endpoint)
     summary: dict[str, Any] = {}
     for idx, img_bytes in enumerate(iter_image_bytes(response.get("data"))):
-        vault_id = save_to_vault(
-            soar, img_bytes, f"attachment_{params.attachment_hash}_{idx}.png"
-        )
+        vault_id = save_to_vault(soar, img_bytes, f"attachment_{params.attachment_hash}_{idx}.png")
         summary["screenshot_vault_id"] = vault_id
     _summary(soar, summary_cls, summary)
     return coerce_output(output_cls, response)
 
 
-def get_attack_score(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.MESSAGE_ATTACK_SCORE_ENDPOINT.format(
-        id=safe_id(params.message_id)
-    )
+def get_attack_score(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.MESSAGE_ATTACK_SCORE_ENDPOINT.format(id=safe_id(params.message_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
@@ -906,9 +725,7 @@ def get_message_image(
     summary: dict[str, Any] = {}
     for idx, img_bytes in enumerate(iter_image_bytes(response.get("data"))):
         suffix = "" if idx == 0 else f"_{idx}"
-        vault_id = save_to_vault(
-            soar, img_bytes, f"message_{params.message_id}{suffix}.{ext}"
-        )
+        vault_id = save_to_vault(soar, img_bytes, f"message_{params.message_id}{suffix}.{ext}")
         summary["screenshot_vault_id"] = vault_id
     _summary(soar, summary_cls, summary)
     return coerce_output(output_cls, response)
@@ -927,9 +744,7 @@ def get_message_eml(
     return ActionOutput()
 
 
-def get_message_image_link(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_message_image_link(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.MESSAGE_IMAGE_LINK_ENDPOINT.format(id=safe_id(params.message_id))
     query: dict[str, Any] = {}
     if _pget(params, "link_duration_seconds"):
@@ -940,31 +755,23 @@ def get_message_image_link(
 
 
 def set_access_justification(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
-    endpoint = consts.MESSAGE_JUSTIFICATION_ENDPOINT.format(
-        id=safe_id(params.message_id)
-    )
+    endpoint = consts.MESSAGE_JUSTIFICATION_ENDPOINT.format(id=safe_id(params.message_id))
     _client(asset).post(endpoint, json_data={"justification": params.justification})
     soar.set_message("Access justification set successfully")
     return ActionOutput()
 
 
-def get_message_data_model(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_message_data_model(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.MESSAGE_MDM_ENDPOINT.format(id=safe_id(params.message_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def restore_message(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def restore_message(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.MESSAGE_RESTORE_ENDPOINT.format(id=safe_id(params.message_id))
     return coerce_output(output_cls, _client(asset).post(endpoint))
 
 
-def trash_message(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def trash_message(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.MESSAGE_TRASH_ENDPOINT.format(id=safe_id(params.message_id))
     return coerce_output(output_cls, _client(asset).post(endpoint))
 
@@ -974,9 +781,7 @@ def trash_message(
 # ---------------------------------------------------------------------------
 
 
-def _rule_body_from_params(
-    params: Any, *, include_name_source: bool = True
-) -> dict[str, Any]:
+def _rule_body_from_params(params: Any, *, include_name_source: bool = True) -> dict[str, Any]:
     body: dict[str, Any] = {}
     if include_name_source:
         if _pget(params, "name"):
@@ -1025,21 +830,15 @@ def _rule_body_from_params(
             if isinstance(parsed, list):
                 body["authors"] = parsed
             else:
-                raise ActionFailure(
-                    "authors must be a JSON array of {name, twitter} objects"
-                )
+                raise ActionFailure("authors must be a JSON array of {name, twitter} objects")
         except ActionFailure:
             raise
         except Exception as e:
-            raise ActionFailure(
-                "authors must be a JSON array of {name, twitter} objects"
-            ) from e
+            raise ActionFailure("authors must be a JSON array of {name, twitter} objects") from e
     return body
 
 
-def list_rules(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_rules(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {
         "limit": clamp_limit(_pget(params, "limit")),
         "offset": int(_pget(params, "offset") or 0),
@@ -1052,20 +851,14 @@ def list_rules(
     return coerce_many(output_cls, response.get("rules", []))
 
 
-def create_rule(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def create_rule(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     body = _rule_body_from_params(params)
     body["name"] = params.name
     body["source"] = params.source
-    return coerce_output(
-        output_cls, _client(asset).post(consts.RULES_ENDPOINT, json_data=body)
-    )
+    return coerce_output(output_cls, _client(asset).post(consts.RULES_ENDPOINT, json_data=body))
 
 
-def list_rule_history(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def list_rule_history(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     query: dict[str, Any] = {
         "classification_created_at[gte]": params.start_time,
         "classification_created_at[lte]": params.end_time,
@@ -1080,18 +873,12 @@ def list_rule_history(
         query["count"] = int(params.count)
     if _pget(params, "offset") is not None:
         query["offset"] = int(params.offset)
-    return coerce_output(
-        output_cls, _client(asset).get(consts.RULES_HISTORY_ENDPOINT, params=query)
-    )
+    return coerce_output(output_cls, _client(asset).get(consts.RULES_HISTORY_ENDPOINT, params=query))
 
 
-def validate_rule(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def validate_rule(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     body = {"name": params.name, "source": params.source}
-    return coerce_output(
-        output_cls, _client(asset).post(consts.RULES_VALIDATE_ENDPOINT, json_data=body)
-    )
+    return coerce_output(output_cls, _client(asset).post(consts.RULES_VALIDATE_ENDPOINT, json_data=body))
 
 
 def delete_rule(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
@@ -1101,38 +888,28 @@ def delete_rule(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
     return ActionOutput()
 
 
-def get_rule(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_rule(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.RULE_ENDPOINT.format(id=safe_id(params.rule_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def update_rule(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def update_rule(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.RULE_ENDPOINT.format(id=safe_id(params.rule_id))
     body = _rule_body_from_params(params)
     return coerce_output(output_cls, _client(asset).put(endpoint, json_data=body))
 
 
-def activate_rule(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def activate_rule(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.RULE_ACTIVATE_ENDPOINT.format(id=safe_id(params.rule_id))
     return coerce_output(output_cls, _client(asset).post(endpoint))
 
 
-def deactivate_rule(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def deactivate_rule(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.RULE_DEACTIVATE_ENDPOINT.format(id=safe_id(params.rule_id))
     return coerce_output(output_cls, _client(asset).post(endpoint))
 
 
-def get_rule_history(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_rule_history(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.RULE_HISTORY_ENDPOINT.format(id=safe_id(params.rule_id))
     query: dict[str, Any] = {}
     if _pget(params, "start_time"):
@@ -1140,9 +917,7 @@ def get_rule_history(
     if _pget(params, "end_time"):
         query["classification_created_at[lte]"] = params.end_time
     if _maybe_bool(params, "use_rule_last_updated_as_created_at") is not None:
-        query["use_rule_last_updated_as_created_at"] = bool(
-            params.use_rule_last_updated_as_created_at
-        )
+        query["use_rule_last_updated_as_created_at"] = bool(params.use_rule_last_updated_as_created_at)
     return coerce_output(output_cls, _client(asset).get(endpoint, params=query))
 
 
@@ -1151,16 +926,12 @@ def get_rule_history(
 # ---------------------------------------------------------------------------
 
 
-def get_task(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_task(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.TASK_ENDPOINT.format(id=safe_id(params.task_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def list_user_reports(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_user_reports(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {}
     if _pget(params, "start_time"):
         query["reported_at[gte]"] = params.start_time
@@ -1184,30 +955,19 @@ def assign_role(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
 # ---------------------------------------------------------------------------
 
 
-def list_scim_resource_types(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_scim_resource_types(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     response = _client(asset).get(consts.SCIM_RESOURCE_TYPES_ENDPOINT)
     return coerce_many(output_cls, response.get("Resources", []))
 
 
-def get_scim_resource_type(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.SCIM_RESOURCE_TYPE_ENDPOINT.format(
-        id=safe_id(params.resource_type_id)
-    )
+def get_scim_resource_type(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.SCIM_RESOURCE_TYPE_ENDPOINT.format(id=safe_id(params.resource_type_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def list_scim_users(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_scim_users(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query = {
-        "count": min(
-            int(_pget(params, "count") or consts.SCIM_DEFAULT_COUNT),
-            consts.SCIM_MAX_COUNT,
-        ),
+        "count": min(int(_pget(params, "count") or consts.SCIM_DEFAULT_COUNT), consts.SCIM_MAX_COUNT),
         "startIndex": max(int(_pget(params, "start_index") or 1), 1),
     }
     if _pget(params, "filter"):
@@ -1216,9 +976,7 @@ def list_scim_users(
     return coerce_many(output_cls, response.get("Resources", []))
 
 
-def create_scim_user(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def create_scim_user(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     body = {
         "userName": params.user_name,
         "name": {"givenName": params.given_name, "familyName": params.family_name},
@@ -1226,14 +984,10 @@ def create_scim_user(
         "active": True if _pget(params, "active") is None else bool(params.active),
         "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
     }
-    return coerce_output(
-        output_cls, _client(asset).post(consts.SCIM_USERS_ENDPOINT, json_data=body)
-    )
+    return coerce_output(output_cls, _client(asset).post(consts.SCIM_USERS_ENDPOINT, json_data=body))
 
 
-def get_scim_user(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_scim_user(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.SCIM_USER_ENDPOINT.format(id=safe_id(params.user_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
@@ -1245,9 +999,7 @@ def delete_scim_user(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
     return ActionOutput()
 
 
-def update_scim_user(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def update_scim_user(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.SCIM_USER_ENDPOINT.format(id=safe_id(params.user_id))
     body = {
         "userName": params.user_name,
@@ -1259,9 +1011,7 @@ def update_scim_user(
     return coerce_output(output_cls, _client(asset).put(endpoint, json_data=body))
 
 
-def patch_scim_user(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def patch_scim_user(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.SCIM_USER_ENDPOINT.format(id=safe_id(params.user_id))
     try:
         operations = json.loads(params.operations_json)
@@ -1274,34 +1024,22 @@ def patch_scim_user(
     return coerce_output(output_cls, _client(asset).patch(endpoint, json_data=body))
 
 
-def validate_scim_auth(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    return coerce_output(
-        output_cls, _client(asset).get(consts.SCIM_VALIDATE_AUTH_ENDPOINT)
-    )
+def validate_scim_auth(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    return coerce_output(output_cls, _client(asset).get(consts.SCIM_VALIDATE_AUTH_ENDPOINT))
 
 
-def list_scim_schemas(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_scim_schemas(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     response = _client(asset).get(consts.SCIM_SCHEMAS_ENDPOINT)
     return coerce_many(output_cls, response.get("Resources", []))
 
 
-def get_scim_schema(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_scim_schema(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.SCIM_SCHEMA_ENDPOINT.format(id=safe_id(params.schema_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def get_scim_service_provider_config(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    return coerce_output(
-        output_cls, _client(asset).get(consts.SCIM_SERVICE_PROVIDER_CONFIG_ENDPOINT)
-    )
+def get_scim_service_provider_config(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    return coerce_output(output_cls, _client(asset).get(consts.SCIM_SERVICE_PROVIDER_CONFIG_ENDPOINT))
 
 
 # ---------------------------------------------------------------------------
@@ -1309,9 +1047,7 @@ def get_scim_service_provider_config(
 # ---------------------------------------------------------------------------
 
 
-def list_child_organizations(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_child_organizations(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {
         "limit": clamp_limit(_pget(params, "limit")),
         "offset": int(_pget(params, "offset") or 0),
@@ -1325,20 +1061,13 @@ def list_child_organizations(
     if _pget(params, "search"):
         query["search"] = params.search
     response = _client(asset).get(consts.CHILD_ORGANIZATIONS_ENDPOINT, params=query)
-    orgs = (
-        response.get("children")
-        or response.get("organizations")
-        or response.get("child_organizations")
-        or []
-    )
+    orgs = response.get("children") or response.get("organizations") or response.get("child_organizations") or []
     if isinstance(response, list):
         orgs = response
     return coerce_many(output_cls, orgs)
 
 
-def create_child_organization(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def create_child_organization(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     body: dict[str, Any] = {"name": params.name}
     if _pget(params, "licenses_json"):
         try:
@@ -1351,12 +1080,8 @@ def create_child_organization(
     )
 
 
-def patch_child_organization(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.CHILD_ORGANIZATION_ENDPOINT.format(
-        id=safe_id(params.organization_id)
-    )
+def patch_child_organization(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.CHILD_ORGANIZATION_ENDPOINT.format(id=safe_id(params.organization_id))
     body: dict[str, Any] = {}
     if _pget(params, "name"):
         body["name"] = params.name
@@ -1370,12 +1095,8 @@ def patch_child_organization(
     return coerce_output(output_cls, _client(asset).patch(endpoint, json_data=body))
 
 
-def patch_child_organization_licensing(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.CHILD_ORGANIZATION_LICENSING_ENDPOINT.format(
-        id=safe_id(params.organization_id)
-    )
+def patch_child_organization_licensing(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.CHILD_ORGANIZATION_LICENSING_ENDPOINT.format(id=safe_id(params.organization_id))
     try:
         body = json.loads(params.licensing_json)
     except json.JSONDecodeError as e:
@@ -1383,18 +1104,14 @@ def patch_child_organization_licensing(
     return coerce_output(output_cls, _client(asset).patch(endpoint, json_data=body))
 
 
-def bulk_patch_child_organization_licensing(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def bulk_patch_child_organization_licensing(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     try:
         body = json.loads(params.bulk_licensing_json)
     except json.JSONDecodeError as e:
         raise ActionFailure(f"Invalid bulk_licensing_json: {e}") from e
     return coerce_output(
         output_cls,
-        _client(asset).post(
-            consts.CHILD_ORGANIZATIONS_BULK_LICENSING_ENDPOINT, json_data=body
-        ),
+        _client(asset).post(consts.CHILD_ORGANIZATIONS_BULK_LICENSING_ENDPOINT, json_data=body),
     )
 
 
@@ -1403,9 +1120,7 @@ def bulk_patch_child_organization_licensing(
 # ---------------------------------------------------------------------------
 
 
-def list_email_bombs(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_email_bombs(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {
         "limit": clamp_limit(_pget(params, "limit")),
         "offset": int(_pget(params, "offset") or 0),
@@ -1421,30 +1136,22 @@ def list_email_bombs(
     return coerce_many(output_cls, bombs)
 
 
-def create_email_bomb(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def create_email_bomb(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     body = {
         "mailbox_id": params.mailbox_id,
         "start_time": params.start_time,
         "end_time": params.end_time,
     }
-    return coerce_output(
-        output_cls, _client(asset).post(consts.EMAIL_BOMBS_ENDPOINT, json_data=body)
-    )
+    return coerce_output(output_cls, _client(asset).post(consts.EMAIL_BOMBS_ENDPOINT, json_data=body))
 
 
-def get_email_bomb(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
+def get_email_bomb(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
     endpoint = consts.EMAIL_BOMB_ENDPOINT.format(id=safe_id(params.email_bomb_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
 def dismiss_email_bomb(params: Any, soar: SOARClient, asset: Any) -> ActionOutput:
-    endpoint = consts.EMAIL_BOMB_DISMISS_ENDPOINT.format(
-        id=safe_id(params.email_bomb_id)
-    )
+    endpoint = consts.EMAIL_BOMB_DISMISS_ENDPOINT.format(id=safe_id(params.email_bomb_id))
     body: dict[str, Any] = {}
     if _pget(params, "review_comment"):
         body["review_comment"] = params.review_comment
@@ -1458,9 +1165,7 @@ def dismiss_email_bomb(params: Any, soar: SOARClient, asset: Any) -> ActionOutpu
 # ---------------------------------------------------------------------------
 
 
-def list_dlp_release_requests(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> list[ActionOutput]:
+def list_dlp_release_requests(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> list[ActionOutput]:
     query: dict[str, Any] = {
         "limit": clamp_limit(_pget(params, "limit")),
         "offset": int(_pget(params, "offset") or 0),
@@ -1474,21 +1179,13 @@ def list_dlp_release_requests(
     return coerce_many(output_cls, items)
 
 
-def get_dlp_release_request(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.DLP_RELEASE_REQUEST_ENDPOINT.format(
-        id=safe_id(params.release_request_id)
-    )
+def get_dlp_release_request(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.DLP_RELEASE_REQUEST_ENDPOINT.format(id=safe_id(params.release_request_id))
     return coerce_output(output_cls, _client(asset).get(endpoint))
 
 
-def approve_dlp_release_request(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.DLP_RELEASE_REQUEST_APPROVE_ENDPOINT.format(
-        id=safe_id(params.release_request_id)
-    )
+def approve_dlp_release_request(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.DLP_RELEASE_REQUEST_APPROVE_ENDPOINT.format(id=safe_id(params.release_request_id))
     body: dict[str, Any] = {}
     if _pget(params, "comment"):
         body["comment"] = params.comment
@@ -1496,12 +1193,8 @@ def approve_dlp_release_request(
     return coerce_output(output_cls, response if isinstance(response, dict) else {})
 
 
-def deny_dlp_release_request(
-    params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]
-) -> ActionOutput:
-    endpoint = consts.DLP_RELEASE_REQUEST_DENY_ENDPOINT.format(
-        id=safe_id(params.release_request_id)
-    )
+def deny_dlp_release_request(params: Any, soar: SOARClient, asset: Any, output_cls: type[ActionOutput]) -> ActionOutput:
+    endpoint = consts.DLP_RELEASE_REQUEST_DENY_ENDPOINT.format(id=safe_id(params.release_request_id))
     body: dict[str, Any] = {}
     if _pget(params, "comment"):
         body["comment"] = params.comment

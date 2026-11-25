@@ -32,6 +32,7 @@ from soar_sdk.logging import getLogger
 
 from .consts import DEFAULT_LIMIT, MAX_LIMIT
 
+
 logger = getLogger()
 
 T = TypeVar("T", bound=BaseModel)
@@ -141,9 +142,7 @@ def save_to_vault(
         try:
             container_id = soar.get_executing_container_id()
         except Exception as e:
-            raise ActionFailure(
-                f"Failed to resolve container for vault save: {e!s}"
-            ) from e
+            raise ActionFailure(f"Failed to resolve container for vault save: {e!s}") from e
     try:
         vault_id = soar.vault.create_attachment(
             container_id=container_id,
@@ -265,9 +264,7 @@ def coerce_output(model_cls: type[T], data: Any) -> T:
             except Exception:
                 pass
             default = _default_for_annotation(annotation)
-            if default is not None or (
-                isinstance(annotation, type) and annotation in (str, bool, int, float)
-            ):
+            if default is not None or (isinstance(annotation, type) and annotation in (str, bool, int, float)):
                 payload[key] = default
 
         # Recurse into nested models when value is a dict
@@ -278,9 +275,7 @@ def coerce_output(model_cls: type[T], data: Any) -> T:
         if isinstance(annotation, type) and issubclass(annotation, BaseModel):
             nested_cls = annotation
         elif args and isinstance(args[0], type) and issubclass(args[0], BaseModel):
-            if getattr(annotation, "__origin__", None) is list and isinstance(
-                value, list
-            ):
+            if getattr(annotation, "__origin__", None) is list and isinstance(value, list):
                 payload[key] = [coerce_output(args[0], item) for item in value]
                 continue
             nested_cls = args[0]
@@ -294,9 +289,7 @@ def coerce_output(model_cls: type[T], data: Any) -> T:
         try:
             return model_cls.model_construct(**payload)
         except Exception as e:
-            raise ActionFailure(
-                f"Failed to coerce API response into {model_cls.__name__}: {e!s}"
-            ) from e
+            raise ActionFailure(f"Failed to coerce API response into {model_cls.__name__}: {e!s}") from e
 
 
 def coerce_many(model_cls: type[T], items: list[Any] | None) -> list[T]:
@@ -396,9 +389,7 @@ def verify_sublime_signature(
 
     body_sha = hashlib.sha256(raw_body_bytes).hexdigest()
     logger.warning(
-        "Sublime webhook: signature mismatch. "
-        "timestamp=%s body_bytes=%s body_sha256=%s "
-        "received=%s computed=%s candidate_count=%s",
+        "Sublime webhook: signature mismatch. timestamp=%s body_bytes=%s body_sha256=%s received=%s computed=%s candidate_count=%s",
         timestamp,
         len(raw_body_bytes),
         body_sha,

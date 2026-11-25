@@ -22,6 +22,7 @@ from soar_sdk.webhooks.models import WebhookRequest, WebhookResponse
 from . import impl
 from .webhook_handler import handle_sublime_webhook
 
+
 logger = getLogger()
 
 
@@ -115,9 +116,10 @@ app = App(
     product_vendor="Sublime Security",
     product_name="Sublime Platform",
     publisher="Splunk SOAR Community",
-    # Must match the Community App Store registration for package
-    # phantom_sublimesecurity / app name "Sublime Security".
-    appid="e58b1480-1a76-59ea-8004-92df9a9291b8",
+    # Must be RFC UUID v4: SOAR /app_install rejects other versions with
+    # "manifest.json failed validation on value appid" (the legacy Community
+    # registration e58b1480-… is UUID v5 and cannot be installed).
+    appid="a863f5d1-30bb-4e9c-b68f-be595e2a0a5b",
     fips_compliant=True,
     encrypt_cache_state=True,
     encrypt_ingest_state=True,
@@ -147,12 +149,8 @@ def test_connectivity(soar: SOARClient, asset: Asset) -> None:
 
 
 class UploadBinaryParams(Params):
-    vault_id: str | None = Param(
-        description="Vault ID of the file to upload", cef_types=["vault id"]
-    )
-    base64_data: str | None = Param(
-        description="Base64 encoded contents of the file (alternative to vault_id)"
-    )
+    vault_id: str | None = Param(description="Vault ID of the file to upload", cef_types=["vault id"])
+    base64_data: str | None = Param(description="Base64 encoded contents of the file (alternative to vault_id)")
     file_name: str = Param(description="Name of the file")
 
 
@@ -165,9 +163,7 @@ class UploadBinaryOutput(ActionOutput):
     action_type="investigate",
     read_only=False,
 )
-def upload_binary(
-    params: UploadBinaryParams, soar: SOARClient, asset: Asset
-) -> UploadBinaryOutput:
+def upload_binary(params: UploadBinaryParams, soar: SOARClient, asset: Asset) -> UploadBinaryOutput:
     return impl.upload_binary(params, soar, asset, UploadBinaryOutput)
 
 
@@ -196,20 +192,14 @@ class GetBinexplodeResultsOutput(ActionOutput):
     scan: ScanOutput
 
 
-@app.action(
-    description="Get results of a binexplode scan by task ID", action_type="investigate"
-)
-def get_binexplode_results(
-    params: GetBinexplodeResultsParams, soar: SOARClient, asset: Asset
-) -> GetBinexplodeResultsOutput:
+@app.action(description="Get results of a binexplode scan by task ID", action_type="investigate")
+def get_binexplode_results(params: GetBinexplodeResultsParams, soar: SOARClient, asset: Asset) -> GetBinexplodeResultsOutput:
     return impl.get_binexplode_results(params, soar, asset, GetBinexplodeResultsOutput)
 
 
 class AnalyzeLinkParams(Params):
     url: str = Param(description="URL to analyze", primary=True, cef_types=["url"])
-    no_logo_detect: bool | None = Param(
-        description="Skip logo detection during analysis", default=False
-    )
+    no_logo_detect: bool | None = Param(description="Skip logo detection during analysis", default=False)
 
 
 class BrandOutput(ActionOutput):
@@ -257,29 +247,17 @@ class AnalyzeLinkOutput(ActionOutput):
     action_type="investigate",
     summary_type=ScreenshotVaultSummary,
 )
-def analyze_link(
-    params: AnalyzeLinkParams, soar: SOARClient, asset: Asset
-) -> AnalyzeLinkOutput:
-    return impl.analyze_link(
-        params, soar, asset, AnalyzeLinkOutput, summary_cls=ScreenshotVaultSummary
-    )
+def analyze_link(params: AnalyzeLinkParams, soar: SOARClient, asset: Asset) -> AnalyzeLinkOutput:
+    return impl.analyze_link(params, soar, asset, AnalyzeLinkOutput, summary_cls=ScreenshotVaultSummary)
 
 
 class ListAuditEventsParams(Params):
-    start_time: str | None = Param(
-        description="Inclusive start datetime filter (ISO 8601 UTC)"
-    )
-    end_time: str | None = Param(
-        description="Exclusive end datetime filter (ISO 8601 UTC)"
-    )
+    start_time: str | None = Param(description="Inclusive start datetime filter (ISO 8601 UTC)")
+    end_time: str | None = Param(description="Exclusive end datetime filter (ISO 8601 UTC)")
     event_type: str | None = Param(description="Filter by event type")
     user_ids: str | None = Param(description="Comma-separated user IDs to filter by")
-    limit: float | None = Param(
-        description="Maximum number of events to return (max: 500)", default=100
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    limit: float | None = Param(description="Maximum number of events to return (max: 500)", default=100)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class CreatedByOutput(ActionOutput):
@@ -308,9 +286,7 @@ class ListAuditEventsOutput(ActionOutput):
     description="List events in the Sublime Security audit log",
     action_type="investigate",
 )
-def list_audit_events(
-    params: ListAuditEventsParams, soar: SOARClient, asset: Asset
-) -> ListAuditEventsOutput:
+def list_audit_events(params: ListAuditEventsParams, soar: SOARClient, asset: Asset) -> ListAuditEventsOutput:
     return impl.list_audit_events(params, soar, asset, ListAuditEventsOutput)
 
 
@@ -323,16 +299,12 @@ class ListAuditEventTypesOutput(ActionOutput):
     description="List all available event types for the audit log",
     action_type="investigate",
 )
-def list_audit_event_types(
-    params: Params, soar: SOARClient, asset: Asset
-) -> ListAuditEventTypesOutput:
+def list_audit_event_types(params: Params, soar: SOARClient, asset: Asset) -> ListAuditEventTypesOutput:
     return impl.list_audit_event_types(params, soar, asset, ListAuditEventTypesOutput)
 
 
 class GetAuditEventParams(Params):
-    event_id: str = Param(
-        description="UUID of the audit event", primary=True, cef_types=["event id"]
-    )
+    event_id: str = Param(description="UUID of the audit event", primary=True, cef_types=["event id"])
 
 
 class CreatedByOutput(ActionOutput):
@@ -357,37 +329,21 @@ class GetAuditEventOutput(ActionOutput):
     data: DataOutput
 
 
-@app.action(
-    description="Retrieve a single event from the audit log", action_type="investigate"
-)
-def get_audit_event(
-    params: GetAuditEventParams, soar: SOARClient, asset: Asset
-) -> GetAuditEventOutput:
+@app.action(description="Retrieve a single event from the audit log", action_type="investigate")
+def get_audit_event(params: GetAuditEventParams, soar: SOARClient, asset: Asset) -> GetAuditEventOutput:
     return impl.get_audit_event(params, soar, asset, GetAuditEventOutput)
 
 
 class StartHuntJobParams(Params):
     source: str = Param(description="MQL source query")
-    range_start_time: str = Param(
-        description="Start time for hunt range (ISO 8601 UTC)"
-    )
+    range_start_time: str = Param(description="Start time for hunt range (ISO 8601 UTC)")
     range_end_time: str = Param(description="End time for hunt range (ISO 8601 UTC)")
     name: str | None = Param(description="Name for the hunt job")
-    private: bool | None = Param(
-        description="Make hunt visible only to admins", default=False
-    )
-    triage_flagged: bool | None = Param(
-        description="Pre-filter to flagged messages (OR'd with other triage filters)"
-    )
-    triage_reported: bool | None = Param(
-        description="Pre-filter to user-reported messages (OR'd with other triage filters)"
-    )
-    triage_email_bomb: bool | None = Param(
-        description="Pre-filter to messages in an email bomb (OR'd with other triage filters)"
-    )
-    triage_dlp_rule_matched: bool | None = Param(
-        description="Pre-filter to messages that matched a DLP rule (OR'd with other triage filters)"
-    )
+    private: bool | None = Param(description="Make hunt visible only to admins", default=False)
+    triage_flagged: bool | None = Param(description="Pre-filter to flagged messages (OR'd with other triage filters)")
+    triage_reported: bool | None = Param(description="Pre-filter to user-reported messages (OR'd with other triage filters)")
+    triage_email_bomb: bool | None = Param(description="Pre-filter to messages in an email bomb (OR'd with other triage filters)")
+    triage_dlp_rule_matched: bool | None = Param(description="Pre-filter to messages that matched a DLP rule (OR'd with other triage filters)")
 
 
 class StartHuntJobOutput(ActionOutput):
@@ -399,9 +355,7 @@ class StartHuntJobOutput(ActionOutput):
     action_type="investigate",
     read_only=False,
 )
-def start_hunt_job(
-    params: StartHuntJobParams, soar: SOARClient, asset: Asset
-) -> StartHuntJobOutput:
+def start_hunt_job(params: StartHuntJobParams, soar: SOARClient, asset: Asset) -> StartHuntJobOutput:
     return impl.start_hunt_job(params, soar, asset, StartHuntJobOutput)
 
 
@@ -420,20 +374,14 @@ class GetHuntJobOutput(ActionOutput):
 
 
 @app.action(description="Get the status of a hunt job", action_type="investigate")
-def get_hunt_job(
-    params: GetHuntJobParams, soar: SOARClient, asset: Asset
-) -> GetHuntJobOutput:
+def get_hunt_job(params: GetHuntJobParams, soar: SOARClient, asset: Asset) -> GetHuntJobOutput:
     return impl.get_hunt_job(params, soar, asset, GetHuntJobOutput)
 
 
 class GetHuntJobResultsParams(Params):
     hunt_job_id: str = Param(description="Hunt job ID", primary=True)
-    limit: float | None = Param(
-        description="Maximum number of results (max: 500)", default=100
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    limit: float | None = Param(description="Maximum number of results (max: 500)", default=100)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class GetHuntJobResultsOutput(ActionOutput):
@@ -442,12 +390,8 @@ class GetHuntJobResultsOutput(ActionOutput):
     classification: str
 
 
-@app.action(
-    description="Get the results of a completed hunt job", action_type="investigate"
-)
-def get_hunt_job_results(
-    params: GetHuntJobResultsParams, soar: SOARClient, asset: Asset
-) -> GetHuntJobResultsOutput:
+@app.action(description="Get the results of a completed hunt job", action_type="investigate")
+def get_hunt_job_results(params: GetHuntJobResultsParams, soar: SOARClient, asset: Asset) -> GetHuntJobResultsOutput:
     return impl.get_hunt_job_results(params, soar, asset, GetHuntJobResultsOutput)
 
 
@@ -470,12 +414,8 @@ class ListListsOutput(ActionOutput):
     updated_at: str
 
 
-@app.action(
-    description="Retrieve lists filtered by entry type", action_type="investigate"
-)
-def list_lists(
-    params: ListListsParams, soar: SOARClient, asset: Asset
-) -> list[ListListsOutput]:
+@app.action(description="Retrieve lists filtered by entry type", action_type="investigate")
+def list_lists(params: ListListsParams, soar: SOARClient, asset: Asset) -> list[ListListsOutput]:
     return impl.list_lists(params, soar, asset, ListListsOutput)
 
 
@@ -491,29 +431,21 @@ class CreateListOutput(ActionOutput):
 
 
 @app.action(description="Create a new list", action_type="generic", read_only=False)
-def create_list(
-    params: CreateListParams, soar: SOARClient, asset: Asset
-) -> CreateListOutput:
+def create_list(params: CreateListParams, soar: SOARClient, asset: Asset) -> CreateListOutput:
     return impl.create_list(params, soar, asset, CreateListOutput)
 
 
 class DeleteListParams(Params):
-    list_id: str = Param(
-        description="UUID of the list to delete", primary=True, cef_types=["list id"]
-    )
+    list_id: str = Param(description="UUID of the list to delete", primary=True, cef_types=["list id"])
 
 
 @app.action(description="Delete a list by ID", action_type="generic", read_only=False)
-def delete_list(
-    params: DeleteListParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def delete_list(params: DeleteListParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.delete_list(params, soar, asset)
 
 
 class GetListParams(Params):
-    list_id: str = Param(
-        description="UUID of the list", primary=True, cef_types=["list id"]
-    )
+    list_id: str = Param(description="UUID of the list", primary=True, cef_types=["list id"])
 
 
 class GetListOutput(ActionOutput):
@@ -532,9 +464,7 @@ def get_list(params: GetListParams, soar: SOARClient, asset: Asset) -> GetListOu
 
 
 class PatchListParams(Params):
-    list_id: str = Param(
-        description="UUID of the list", primary=True, cef_types=["list id"]
-    )
+    list_id: str = Param(description="UUID of the list", primary=True, cef_types=["list id"])
     description: str = Param(description="New description for the list")
 
 
@@ -544,25 +474,15 @@ class PatchListOutput(ActionOutput):
     description: str
 
 
-@app.action(
-    description="Patch a list's description", action_type="generic", read_only=False
-)
-def patch_list(
-    params: PatchListParams, soar: SOARClient, asset: Asset
-) -> PatchListOutput:
+@app.action(description="Patch a list's description", action_type="generic", read_only=False)
+def patch_list(params: PatchListParams, soar: SOARClient, asset: Asset) -> PatchListOutput:
     return impl.patch_list(params, soar, asset, PatchListOutput)
 
 
 class GetListEntriesParams(Params):
-    list_id: str = Param(
-        description="UUID of the list", primary=True, cef_types=["list id"]
-    )
-    save_to_vault: bool | None = Param(
-        description="Save the list entries to the vault as a CSV file", default=False
-    )
-    csv_file_name: str | None = Param(
-        description="Optional file name for the CSV (default: list_<list_id>_entries.csv)"
-    )
+    list_id: str = Param(description="UUID of the list", primary=True, cef_types=["list id"])
+    save_to_vault: bool | None = Param(description="Save the list entries to the vault as a CSV file", default=False)
+    csv_file_name: str | None = Param(description="Optional file name for the CSV (default: list_<list_id>_entries.csv)")
 
 
 class GetListEntriesOutput(ActionOutput):
@@ -574,21 +494,13 @@ class GetListEntriesOutput(ActionOutput):
     action_type="investigate",
     summary_type=VaultIdSummary,
 )
-def get_list_entries(
-    params: GetListEntriesParams, soar: SOARClient, asset: Asset
-) -> GetListEntriesOutput:
-    return impl.get_list_entries(
-        params, soar, asset, GetListEntriesOutput, summary_cls=VaultIdSummary
-    )
+def get_list_entries(params: GetListEntriesParams, soar: SOARClient, asset: Asset) -> GetListEntriesOutput:
+    return impl.get_list_entries(params, soar, asset, GetListEntriesOutput, summary_cls=VaultIdSummary)
 
 
 class SetListEntriesParams(Params):
-    list_id: str = Param(
-        description="UUID of the list", primary=True, cef_types=["list id"]
-    )
-    entries: str | None = Param(
-        description="Comma-separated list of entries (alternative to vault_id)"
-    )
+    list_id: str = Param(description="UUID of the list", primary=True, cef_types=["list id"])
+    entries: str | None = Param(description="Comma-separated list of entries (alternative to vault_id)")
     vault_id: str | None = Param(
         description="Vault ID of a CSV file containing entries (one per row, or comma-separated)",
         cef_types=["vault id"],
@@ -600,16 +512,12 @@ class SetListEntriesParams(Params):
     action_type="generic",
     read_only=False,
 )
-def set_list_entries(
-    params: SetListEntriesParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def set_list_entries(params: SetListEntriesParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.set_list_entries(params, soar, asset)
 
 
 class DeleteListEntryParams(Params):
-    list_id: str = Param(
-        description="UUID of the list", primary=True, cef_types=["list id"]
-    )
+    list_id: str = Param(description="UUID of the list", primary=True, cef_types=["list id"])
     entry: str = Param(description="The entry string to delete (max 2000 chars)")
 
 
@@ -618,19 +526,13 @@ class DeleteListEntryParams(Params):
     action_type="generic",
     read_only=False,
 )
-def delete_list_entry(
-    params: DeleteListEntryParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def delete_list_entry(params: DeleteListEntryParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.delete_list_entry(params, soar, asset)
 
 
 class GetListEntryParams(Params):
-    list_id: str = Param(
-        description="UUID of the list", primary=True, cef_types=["list id"]
-    )
-    entry: str = Param(
-        description="Entry string OR comma-separated list of entries to look up (max 2000 chars each)"
-    )
+    list_id: str = Param(description="UUID of the list", primary=True, cef_types=["list id"])
+    entry: str = Param(description="Entry string OR comma-separated list of entries to look up (max 2000 chars each)")
 
 
 class GetListEntryOutput(ActionOutput):
@@ -642,62 +544,36 @@ class GetListEntryOutput(ActionOutput):
     description="Check if a single entry or multiple entries exist in a list",
     action_type="investigate",
 )
-def get_list_entry(
-    params: GetListEntryParams, soar: SOARClient, asset: Asset
-) -> GetListEntryOutput:
+def get_list_entry(params: GetListEntryParams, soar: SOARClient, asset: Asset) -> GetListEntryOutput:
     return impl.get_list_entry(params, soar, asset, GetListEntryOutput)
 
 
 class AddListEntryParams(Params):
-    list_id: str = Param(
-        description="UUID of the list", primary=True, cef_types=["list id"]
-    )
+    list_id: str = Param(description="UUID of the list", primary=True, cef_types=["list id"])
     entry: str = Param(description="The entry string to add (max 2000 chars)")
 
 
-@app.action(
-    description="Add a single entry to a list", action_type="generic", read_only=False
-)
-def add_list_entry(
-    params: AddListEntryParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+@app.action(description="Add a single entry to a list", action_type="generic", read_only=False)
+def add_list_entry(params: AddListEntryParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.add_list_entry(params, soar, asset)
 
 
 class ProcessRawMessageParams(Params):
-    vault_id: str | None = Param(
-        description="Vault ID of the EML file", cef_types=["vault id"]
-    )
-    base64_data: str | None = Param(
-        description="Base64 encoded EML (alternative to vault_id)"
-    )
-    mailbox_email_address: str = Param(
-        description="Mailbox email address", cef_types=["email"]
-    )
+    vault_id: str | None = Param(description="Vault ID of the EML file", cef_types=["vault id"])
+    base64_data: str | None = Param(description="Base64 encoded EML (alternative to vault_id)")
+    mailbox_email_address: str = Param(description="Mailbox email address", cef_types=["email"])
     message_source_id: str = Param(description="Message source UUID")
-    create_mailbox: bool | None = Param(
-        description="Create mailbox if it does not exist", default=False
-    )
+    create_mailbox: bool | None = Param(description="Create mailbox if it does not exist", default=False)
     analyze_async: bool | None = Param(
         description="Run analysis and finish ingestion async. flagged_rules will be empty on response",
         default=False,
     )
-    canonical_id: str | None = Param(
-        description="Known canonical (message group) ID (64 chars)"
-    )
-    external_message_id: str | None = Param(
-        description="ID of the message according to the external source"
-    )
-    external_thread_id: str | None = Param(
-        description="ID of the thread according to the external source"
-    )
-    external_created_at: str | None = Param(
-        description="Timestamp the message was created per external source (ISO 8601)"
-    )
+    canonical_id: str | None = Param(description="Known canonical (message group) ID (64 chars)")
+    external_message_id: str | None = Param(description="ID of the message according to the external source")
+    external_thread_id: str | None = Param(description="ID of the thread according to the external source")
+    external_created_at: str | None = Param(description="Timestamp the message was created per external source (ISO 8601)")
     folder: str | None = Param(description="The mailbox folder the message is in")
-    labels: str | None = Param(
-        description="Comma-separated labels applied by the mailbox"
-    )
+    labels: str | None = Param(description="Comma-separated labels applied by the mailbox")
     route_type: str | None = Param(description="Directional route type of the message")
     message_type: str | None = Param(
         description="Message type override",
@@ -717,38 +593,20 @@ class ProcessRawMessageOutput(ActionOutput):
     action_type="investigate",
     read_only=False,
 )
-def process_raw_message(
-    params: ProcessRawMessageParams, soar: SOARClient, asset: Asset
-) -> ProcessRawMessageOutput:
+def process_raw_message(params: ProcessRawMessageParams, soar: SOARClient, asset: Asset) -> ProcessRawMessageOutput:
     return impl.process_raw_message(params, soar, asset, ProcessRawMessageOutput)
 
 
 class ListMailboxesParams(Params):
-    active: bool | None = Param(
-        description="Filter for effectively active mailboxes (marked active with a live subscription)"
-    )
+    active: bool | None = Param(description="Filter for effectively active mailboxes (marked active with a live subscription)")
     marked_active: bool | None = Param(description="Filter for mailboxes marked active")
-    search: str | None = Param(
-        description="Search across mailbox names and email addresses"
-    )
-    email_addresses: str | None = Param(
-        description="Comma-delimited email addresses to return", cef_types=["email"]
-    )
-    mailbox_types: str | None = Param(
-        description="Comma-delimited mailbox types to filter by"
-    )
-    sub_error_types: str | None = Param(
-        description="Comma-delimited subscription error types to filter by"
-    )
-    message_source_id: str | None = Param(
-        description="ID of the message source the mailboxes belong to"
-    )
-    limit: float | None = Param(
-        description="Maximum number of results (max: 500)", default=100
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    search: str | None = Param(description="Search across mailbox names and email addresses")
+    email_addresses: str | None = Param(description="Comma-delimited email addresses to return", cef_types=["email"])
+    mailbox_types: str | None = Param(description="Comma-delimited mailbox types to filter by")
+    sub_error_types: str | None = Param(description="Comma-delimited subscription error types to filter by")
+    message_source_id: str | None = Param(description="ID of the message source the mailboxes belong to")
+    limit: float | None = Param(description="Maximum number of results (max: 500)", default=100)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class ListMailboxesOutput(ActionOutput):
@@ -759,49 +617,25 @@ class ListMailboxesOutput(ActionOutput):
 
 
 @app.action(description="List connected mailboxes", action_type="investigate")
-def list_mailboxes(
-    params: ListMailboxesParams, soar: SOARClient, asset: Asset
-) -> ListMailboxesOutput:
+def list_mailboxes(params: ListMailboxesParams, soar: SOARClient, asset: Asset) -> ListMailboxesOutput:
     return impl.list_mailboxes(params, soar, asset, ListMailboxesOutput)
 
 
 class ListMessageGroupsParams(Params):
-    start_time: str | None = Param(
-        description="Start time filter (ISO 8601 UTC), maps to created_at__gte"
-    )
-    end_time: str | None = Param(
-        description="End time filter (ISO 8601 UTC), maps to created_at__lt"
-    )
+    start_time: str | None = Param(description="Start time filter (ISO 8601 UTC), maps to created_at__gte")
+    end_time: str | None = Param(description="End time filter (ISO 8601 UTC), maps to created_at__lt")
     flagged: bool | None = Param(description="Filter by flagged status")
     reviewed: bool | None = Param(description="Filter by reviewed status")
-    user_reported: bool | None = Param(
-        description="Filter to groups with at least one reported message"
-    )
-    attack_surface_reduction: bool | None = Param(
-        description="Filter to groups with flagged 'Attack surface reduction' tag"
-    )
-    sender_email: str | None = Param(
-        description="Filter by sender email (comma-separated list)", cef_types=["email"]
-    )
-    sender_domain: str | None = Param(
-        description="Filter by sender domain (comma-separated)"
-    )
-    sender_display_name: str | None = Param(
-        description="Filter by sender display name (comma-separated)"
-    )
-    mailbox_email: str | None = Param(
-        description="Filter by mailbox email (comma-separated)", cef_types=["email"]
-    )
-    recipient_email: str | None = Param(
-        description="Filter by recipient email (comma-separated)", cef_types=["email"]
-    )
+    user_reported: bool | None = Param(description="Filter to groups with at least one reported message")
+    attack_surface_reduction: bool | None = Param(description="Filter to groups with flagged 'Attack surface reduction' tag")
+    sender_email: str | None = Param(description="Filter by sender email (comma-separated list)", cef_types=["email"])
+    sender_domain: str | None = Param(description="Filter by sender domain (comma-separated)")
+    sender_display_name: str | None = Param(description="Filter by sender display name (comma-separated)")
+    mailbox_email: str | None = Param(description="Filter by mailbox email (comma-separated)", cef_types=["email"])
+    recipient_email: str | None = Param(description="Filter by recipient email (comma-separated)", cef_types=["email"])
     subject: str | None = Param(description="Filter by subject (comma-separated)")
-    canonical_id: str | None = Param(
-        description="Filter by canonical ID (comma-separated)"
-    )
-    attachment_name: str | None = Param(
-        description="Filter by attachment name (comma-separated)"
-    )
+    canonical_id: str | None = Param(description="Filter by canonical ID (comma-separated)")
+    attachment_name: str | None = Param(description="Filter by attachment name (comma-separated)")
     attachment_sha256: str | None = Param(
         description="Filter by attachment SHA256 (comma-separated)",
         cef_types=["sha256"],
@@ -809,34 +643,20 @@ class ListMessageGroupsParams(Params):
     attack_score_verdict: str | None = Param(
         description="Filter by attack score verdict (comma-separated: unknown, likely_benign, suspicious, malicious, graymail, spam)"
     )
-    flagged_rule_id: str | None = Param(
-        description="Filter by flagged rule ID (comma-separated)"
-    )
+    flagged_rule_id: str | None = Param(description="Filter by flagged rule ID (comma-separated)")
     flagged_rule_severity: str | None = Param(
         description="Filter by flagged rule severity (comma-separated: informational, low, medium, high, critical)"
     )
-    historically_flagged_rule_id: str | None = Param(
-        description="Filter by historically flagged rule ID (comma-separated)"
-    )
-    historically_flagged_rule_severity: str | None = Param(
-        description="Filter by historically flagged rule severity (comma-separated)"
-    )
-    reported_as_phish_by: str | None = Param(
-        description="Filter by reporter (comma-separated)"
-    )
-    spam_status: str | None = Param(
-        description="Filter by spam status (comma-separated: spam, not_spam, mixed)"
-    )
+    historically_flagged_rule_id: str | None = Param(description="Filter by historically flagged rule ID (comma-separated)")
+    historically_flagged_rule_severity: str | None = Param(description="Filter by historically flagged rule severity (comma-separated)")
+    reported_as_phish_by: str | None = Param(description="Filter by reporter (comma-separated)")
+    spam_status: str | None = Param(description="Filter by spam status (comma-separated: spam, not_spam, mixed)")
     vendor_id: str | None = Param(description="Filter by vendor ID (comma-separated)")
     first_message_reported_at_gte: str | None = Param(
         description="Only groups with a message first reported at or after this time (ISO 8601 UTC)"
     )
-    limit: float | None = Param(
-        description="Maximum number of results (max: 500)", default=100
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    limit: float | None = Param(description="Maximum number of results (max: 500)", default=100)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class ListMessageGroupsOutput(ActionOutput):
@@ -846,19 +666,13 @@ class ListMessageGroupsOutput(ActionOutput):
     state: str
 
 
-@app.action(
-    description="List message groups with optional filters", action_type="investigate"
-)
-def list_message_groups(
-    params: ListMessageGroupsParams, soar: SOARClient, asset: Asset
-) -> ListMessageGroupsOutput:
+@app.action(description="List message groups with optional filters", action_type="investigate")
+def list_message_groups(params: ListMessageGroupsParams, soar: SOARClient, asset: Asset) -> ListMessageGroupsOutput:
     return impl.list_message_groups(params, soar, asset, ListMessageGroupsOutput)
 
 
 class DismissMessageGroupsParams(Params):
-    message_group_ids: str = Param(
-        description="Comma-separated list of message group IDs"
-    )
+    message_group_ids: str = Param(description="Comma-separated list of message group IDs")
     classification: str | None = Param(
         description="Classification for dismissed groups",
         value_list=[
@@ -893,16 +707,12 @@ class DismissMessageGroupsParams(Params):
     action_type="correct",
     read_only=False,
 )
-def dismiss_message_groups(
-    params: DismissMessageGroupsParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def dismiss_message_groups(params: DismissMessageGroupsParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.dismiss_message_groups(params, soar, asset)
 
 
 class QuarantineMessageGroupsParams(Params):
-    message_group_ids: str = Param(
-        description="Comma-separated list of message group IDs"
-    )
+    message_group_ids: str = Param(description="Comma-separated list of message group IDs")
     classification: str | None = Param(
         description="Classification",
         value_list=[
@@ -941,18 +751,12 @@ class QuarantineMessageGroupsOutput(ActionOutput):
     action_type="correct",
     read_only=False,
 )
-def quarantine_message_groups(
-    params: QuarantineMessageGroupsParams, soar: SOARClient, asset: Asset
-) -> QuarantineMessageGroupsOutput:
-    return impl.quarantine_message_groups(
-        params, soar, asset, QuarantineMessageGroupsOutput
-    )
+def quarantine_message_groups(params: QuarantineMessageGroupsParams, soar: SOARClient, asset: Asset) -> QuarantineMessageGroupsOutput:
+    return impl.quarantine_message_groups(params, soar, asset, QuarantineMessageGroupsOutput)
 
 
 class GraymailMessageGroupsParams(Params):
-    message_group_ids: str = Param(
-        description="Comma-separated list of message group IDs"
-    )
+    message_group_ids: str = Param(description="Comma-separated list of message group IDs")
     classification: str | None = Param(
         description="Classification",
         value_list=[
@@ -991,18 +795,12 @@ class GraymailMessageGroupsOutput(ActionOutput):
     action_type="correct",
     read_only=False,
 )
-def graymail_message_groups(
-    params: GraymailMessageGroupsParams, soar: SOARClient, asset: Asset
-) -> GraymailMessageGroupsOutput:
-    return impl.graymail_message_groups(
-        params, soar, asset, GraymailMessageGroupsOutput
-    )
+def graymail_message_groups(params: GraymailMessageGroupsParams, soar: SOARClient, asset: Asset) -> GraymailMessageGroupsOutput:
+    return impl.graymail_message_groups(params, soar, asset, GraymailMessageGroupsOutput)
 
 
 class SpamMessageGroupsParams(Params):
-    message_group_ids: str = Param(
-        description="Comma-separated list of message group IDs"
-    )
+    message_group_ids: str = Param(description="Comma-separated list of message group IDs")
     classification: str | None = Param(
         description="Classification",
         value_list=[
@@ -1041,16 +839,12 @@ class SpamMessageGroupsOutput(ActionOutput):
     action_type="correct",
     read_only=False,
 )
-def spam_message_groups(
-    params: SpamMessageGroupsParams, soar: SOARClient, asset: Asset
-) -> SpamMessageGroupsOutput:
+def spam_message_groups(params: SpamMessageGroupsParams, soar: SOARClient, asset: Asset) -> SpamMessageGroupsOutput:
     return impl.spam_message_groups(params, soar, asset, SpamMessageGroupsOutput)
 
 
 class RestoreMessageGroupsParams(Params):
-    message_group_ids: str = Param(
-        description="Comma-separated list of message group IDs"
-    )
+    message_group_ids: str = Param(description="Comma-separated list of message group IDs")
     classification: str | None = Param(
         description="Classification",
         value_list=[
@@ -1089,16 +883,12 @@ class RestoreMessageGroupsOutput(ActionOutput):
     action_type="correct",
     read_only=False,
 )
-def restore_message_groups(
-    params: RestoreMessageGroupsParams, soar: SOARClient, asset: Asset
-) -> RestoreMessageGroupsOutput:
+def restore_message_groups(params: RestoreMessageGroupsParams, soar: SOARClient, asset: Asset) -> RestoreMessageGroupsOutput:
     return impl.restore_message_groups(params, soar, asset, RestoreMessageGroupsOutput)
 
 
 class ReviewMessageGroupsParams(Params):
-    message_group_ids: str = Param(
-        description="Comma-separated list of message group IDs"
-    )
+    message_group_ids: str = Param(description="Comma-separated list of message group IDs")
     classification: str = Param(
         description="Review classification",
         value_list=[
@@ -1125,9 +915,7 @@ class ReviewMessageGroupsParams(Params):
         ],
     )
     review_comment: str | None = Param(description="Optional review comment")
-    share_with_sublime: bool | None = Param(
-        description="Share with Sublime for community detection", default=False
-    )
+    share_with_sublime: bool | None = Param(description="Share with Sublime for community detection", default=False)
 
 
 class ReviewMessageGroupsOutput(ActionOutput):
@@ -1140,57 +928,29 @@ class ReviewMessageGroupsOutput(ActionOutput):
     action_type="correct",
     read_only=False,
 )
-def review_message_groups(
-    params: ReviewMessageGroupsParams, soar: SOARClient, asset: Asset
-) -> ReviewMessageGroupsOutput:
+def review_message_groups(params: ReviewMessageGroupsParams, soar: SOARClient, asset: Asset) -> ReviewMessageGroupsOutput:
     return impl.review_message_groups(params, soar, asset, ReviewMessageGroupsOutput)
 
 
 class SearchMessageGroupsParams(Params):
-    any: str | None = Param(
-        description="Search all fields (not compatible with other fields)"
-    )
-    sender: str | None = Param(
-        description="Search in From field (wildcard)", cef_types=["email"]
-    )
-    to: str | None = Param(
-        description="Search in To/CC/Bcc fields (wildcard)", cef_types=["email"]
-    )
-    mailbox: str | None = Param(
-        description="Search mailbox by email (wildcard)", cef_types=["email"]
-    )
+    any: str | None = Param(description="Search all fields (not compatible with other fields)")
+    sender: str | None = Param(description="Search in From field (wildcard)", cef_types=["email"])
+    to: str | None = Param(description="Search in To/CC/Bcc fields (wildcard)", cef_types=["email"])
+    mailbox: str | None = Param(description="Search mailbox by email (wildcard)", cef_types=["email"])
     subject: str | None = Param(description="Search subject (wildcard)")
     message_id: str | None = Param(description="Search Message-ID header (wildcard)")
     type: str | None = Param(description="Search by message type")
     states: str | None = Param(description="Comma-separated list of message states")
     file_name: str | None = Param(description="Search attachment filename (wildcard)")
-    attachment_md5: str | None = Param(
-        description="Attachment MD5 (32 chars)", cef_types=["md5"]
-    )
-    attachment_sha1: str | None = Param(
-        description="Attachment SHA1 (40 chars)", cef_types=["sha1"]
-    )
-    attachment_sha256: str | None = Param(
-        description="Attachment SHA256 (64 chars)", cef_types=["sha256"]
-    )
-    start_time: str | None = Param(
-        description="Start time filter (ISO 8601 UTC), maps to created_at[gte]"
-    )
-    end_time: str | None = Param(
-        description="End time filter (ISO 8601 UTC), maps to created_at[lt]"
-    )
-    first_reported_as_phish_at_gte: str | None = Param(
-        description="Groups reported at or after this time (ISO 8601 UTC)"
-    )
-    first_reported_as_phish_at_lt: str | None = Param(
-        description="Groups reported before this time (ISO 8601 UTC)"
-    )
-    limit: float | None = Param(
-        description="Maximum number of results (max: 500)", default=100
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    attachment_md5: str | None = Param(description="Attachment MD5 (32 chars)", cef_types=["md5"])
+    attachment_sha1: str | None = Param(description="Attachment SHA1 (40 chars)", cef_types=["sha1"])
+    attachment_sha256: str | None = Param(description="Attachment SHA256 (64 chars)", cef_types=["sha256"])
+    start_time: str | None = Param(description="Start time filter (ISO 8601 UTC), maps to created_at[gte]")
+    end_time: str | None = Param(description="End time filter (ISO 8601 UTC), maps to created_at[lt]")
+    first_reported_as_phish_at_gte: str | None = Param(description="Groups reported at or after this time (ISO 8601 UTC)")
+    first_reported_as_phish_at_lt: str | None = Param(description="Groups reported before this time (ISO 8601 UTC)")
+    limit: float | None = Param(description="Maximum number of results (max: 500)", default=100)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class SearchMessageGroupsOutput(ActionOutput):
@@ -1204,16 +964,12 @@ class SearchMessageGroupsOutput(ActionOutput):
     description="Search message groups across multiple fields",
     action_type="investigate",
 )
-def search_message_groups(
-    params: SearchMessageGroupsParams, soar: SOARClient, asset: Asset
-) -> SearchMessageGroupsOutput:
+def search_message_groups(params: SearchMessageGroupsParams, soar: SOARClient, asset: Asset) -> SearchMessageGroupsOutput:
     return impl.search_message_groups(params, soar, asset, SearchMessageGroupsOutput)
 
 
 class TrashMessageGroupsParams(Params):
-    message_group_ids: str = Param(
-        description="Comma-separated list of message group IDs"
-    )
+    message_group_ids: str = Param(description="Comma-separated list of message group IDs")
     classification: str | None = Param(
         description="Classification",
         value_list=[
@@ -1247,12 +1003,8 @@ class TrashMessageGroupsOutput(ActionOutput):
     task_id: str
 
 
-@app.action(
-    description="Trash multiple message groups", action_type="correct", read_only=False
-)
-def trash_message_groups(
-    params: TrashMessageGroupsParams, soar: SOARClient, asset: Asset
-) -> TrashMessageGroupsOutput:
+@app.action(description="Trash multiple message groups", action_type="correct", read_only=False)
+def trash_message_groups(params: TrashMessageGroupsParams, soar: SOARClient, asset: Asset) -> TrashMessageGroupsOutput:
     return impl.trash_message_groups(params, soar, asset, TrashMessageGroupsOutput)
 
 
@@ -1274,28 +1026,16 @@ class GetMessageGroupOutput(ActionOutput):
     user_reports: str
 
 
-@app.action(
-    description="Get a single message group by canonical ID", action_type="investigate"
-)
-def get_message_group(
-    params: GetMessageGroupParams, soar: SOARClient, asset: Asset
-) -> GetMessageGroupOutput:
+@app.action(description="Get a single message group by canonical ID", action_type="investigate")
+def get_message_group(params: GetMessageGroupParams, soar: SOARClient, asset: Asset) -> GetMessageGroupOutput:
     return impl.get_message_group(params, soar, asset, GetMessageGroupOutput)
 
 
 class GetMessageGroupsSiemSummaryParams(Params):
-    created_at_gte: str | None = Param(
-        description="Inclusive created_at lower bound (ISO 8601 UTC)"
-    )
-    created_at_lt: str | None = Param(
-        description="Exclusive created_at upper bound (ISO 8601 UTC)"
-    )
-    limit: float | None = Param(
-        description="Maximum number of summaries to return (max: 500)", default=100
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    created_at_gte: str | None = Param(description="Inclusive created_at lower bound (ISO 8601 UTC)")
+    created_at_lt: str | None = Param(description="Exclusive created_at upper bound (ISO 8601 UTC)")
+    limit: float | None = Param(description="Maximum number of summaries to return (max: 500)", default=100)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class GetMessageGroupsSiemSummaryOutput(ActionOutput):
@@ -1311,9 +1051,7 @@ class GetMessageGroupsSiemSummaryOutput(ActionOutput):
 def get_message_groups_siem_summary(
     params: GetMessageGroupsSiemSummaryParams, soar: SOARClient, asset: Asset
 ) -> list[GetMessageGroupsSiemSummaryOutput]:
-    return impl.get_message_groups_siem_summary(
-        params, soar, asset, GetMessageGroupsSiemSummaryOutput
-    )
+    return impl.get_message_groups_siem_summary(params, soar, asset, GetMessageGroupsSiemSummaryOutput)
 
 
 class DismissMessageGroupParams(Params):
@@ -1338,12 +1076,8 @@ class DismissMessageGroupParams(Params):
     review_comment: str | None = Param(description="Optional review comment")
 
 
-@app.action(
-    description="Dismiss a single message group", action_type="correct", read_only=False
-)
-def dismiss_message_group(
-    params: DismissMessageGroupParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+@app.action(description="Dismiss a single message group", action_type="correct", read_only=False)
+def dismiss_message_group(params: DismissMessageGroupParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.dismiss_message_group(params, soar, asset)
 
 
@@ -1378,12 +1112,8 @@ class QuarantineMessageGroupOutput(ActionOutput):
     action_type="correct",
     read_only=False,
 )
-def quarantine_message_group(
-    params: QuarantineMessageGroupParams, soar: SOARClient, asset: Asset
-) -> QuarantineMessageGroupOutput:
-    return impl.quarantine_message_group(
-        params, soar, asset, QuarantineMessageGroupOutput
-    )
+def quarantine_message_group(params: QuarantineMessageGroupParams, soar: SOARClient, asset: Asset) -> QuarantineMessageGroupOutput:
+    return impl.quarantine_message_group(params, soar, asset, QuarantineMessageGroupOutput)
 
 
 class RestoreMessageGroupParams(Params):
@@ -1412,12 +1142,8 @@ class RestoreMessageGroupOutput(ActionOutput):
     task_id: str
 
 
-@app.action(
-    description="Restore a single message group", action_type="correct", read_only=False
-)
-def restore_message_group(
-    params: RestoreMessageGroupParams, soar: SOARClient, asset: Asset
-) -> RestoreMessageGroupOutput:
+@app.action(description="Restore a single message group", action_type="correct", read_only=False)
+def restore_message_group(params: RestoreMessageGroupParams, soar: SOARClient, asset: Asset) -> RestoreMessageGroupOutput:
     return impl.restore_message_group(params, soar, asset, RestoreMessageGroupOutput)
 
 
@@ -1443,9 +1169,7 @@ class ShareWithSublimeOutput(ActionOutput):
     action_type="generic",
     read_only=False,
 )
-def share_with_sublime(
-    params: ShareWithSublimeParams, soar: SOARClient, asset: Asset
-) -> ShareWithSublimeOutput:
+def share_with_sublime(params: ShareWithSublimeParams, soar: SOARClient, asset: Asset) -> ShareWithSublimeOutput:
     return impl.share_with_sublime(params, soar, asset, ShareWithSublimeOutput)
 
 
@@ -1475,31 +1199,17 @@ class TrashMessageGroupOutput(ActionOutput):
     task_id: str
 
 
-@app.action(
-    description="Trash a single message group", action_type="correct", read_only=False
-)
-def trash_message_group(
-    params: TrashMessageGroupParams, soar: SOARClient, asset: Asset
-) -> TrashMessageGroupOutput:
+@app.action(description="Trash a single message group", action_type="correct", read_only=False)
+def trash_message_group(params: TrashMessageGroupParams, soar: SOARClient, asset: Asset) -> TrashMessageGroupOutput:
     return impl.trash_message_group(params, soar, asset, TrashMessageGroupOutput)
 
 
 class AnalyzeRawMessageParams(Params):
-    vault_id: str | None = Param(
-        description="Vault ID of the EML file", cef_types=["vault id"]
-    )
-    base64_data: str | None = Param(
-        description="Base64 encoded EML (alternative to vault_id)"
-    )
-    run_active_detection_rules: bool | None = Param(
-        description="Run all active detection rules", default=False
-    )
-    run_all_detection_rules: bool | None = Param(
-        description="Run all detection rules including inactive", default=False
-    )
-    run_all_insights: bool | None = Param(
-        description="Run all insight queries", default=False
-    )
+    vault_id: str | None = Param(description="Vault ID of the EML file", cef_types=["vault id"])
+    base64_data: str | None = Param(description="Base64 encoded EML (alternative to vault_id)")
+    run_active_detection_rules: bool | None = Param(description="Run all active detection rules", default=False)
+    run_all_detection_rules: bool | None = Param(description="Run all detection rules including inactive", default=False)
+    run_all_insights: bool | None = Param(description="Run all insight queries", default=False)
 
 
 class AnalyzeRawMessageOutput(ActionOutput):
@@ -1511,19 +1221,13 @@ class AnalyzeRawMessageOutput(ActionOutput):
     description="Analyze a raw EML message against rules and queries",
     action_type="investigate",
 )
-def analyze_raw_message(
-    params: AnalyzeRawMessageParams, soar: SOARClient, asset: Asset
-) -> AnalyzeRawMessageOutput:
+def analyze_raw_message(params: AnalyzeRawMessageParams, soar: SOARClient, asset: Asset) -> AnalyzeRawMessageOutput:
     return impl.analyze_raw_message(params, soar, asset, AnalyzeRawMessageOutput)
 
 
 class RenderAttachmentImageParams(Params):
-    vault_id: str | None = Param(
-        description="Vault ID of the attachment file", cef_types=["vault id"]
-    )
-    base64_data: str | None = Param(
-        description="Base64 encoded raw attachment bytes (alternative to vault_id)"
-    )
+    vault_id: str | None = Param(description="Vault ID of the attachment file", cef_types=["vault id"])
+    base64_data: str | None = Param(description="Base64 encoded raw attachment bytes (alternative to vault_id)")
     file_type: str | None = Param(description="File type hint for rendering")
 
 
@@ -1536,25 +1240,13 @@ class RenderAttachmentImageOutput(ActionOutput):
     action_type="investigate",
     summary_type=ScreenshotVaultSummary,
 )
-def render_attachment_image(
-    params: RenderAttachmentImageParams, soar: SOARClient, asset: Asset
-) -> RenderAttachmentImageOutput:
-    return impl.render_attachment_image(
-        params,
-        soar,
-        asset,
-        RenderAttachmentImageOutput,
-        summary_cls=ScreenshotVaultSummary,
-    )
+def render_attachment_image(params: RenderAttachmentImageParams, soar: SOARClient, asset: Asset) -> RenderAttachmentImageOutput:
+    return impl.render_attachment_image(params, soar, asset, RenderAttachmentImageOutput, summary_cls=ScreenshotVaultSummary)
 
 
 class GetAttackScoreRawParams(Params):
-    vault_id: str | None = Param(
-        description="Vault ID of the EML file", cef_types=["vault id"]
-    )
-    base64_data: str | None = Param(
-        description="Base64 encoded EML (alternative to vault_id)"
-    )
+    vault_id: str | None = Param(description="Vault ID of the EML file", cef_types=["vault id"])
+    base64_data: str | None = Param(description="Base64 encoded EML (alternative to vault_id)")
 
 
 class GetAttackScoreRawOutput(ActionOutput):
@@ -1564,41 +1256,21 @@ class GetAttackScoreRawOutput(ActionOutput):
     top_signals: str
 
 
-@app.action(
-    description="Evaluate attack score for a raw message", action_type="investigate"
-)
-def get_attack_score_raw(
-    params: GetAttackScoreRawParams, soar: SOARClient, asset: Asset
-) -> GetAttackScoreRawOutput:
+@app.action(description="Evaluate attack score for a raw message", action_type="investigate")
+def get_attack_score_raw(params: GetAttackScoreRawParams, soar: SOARClient, asset: Asset) -> GetAttackScoreRawOutput:
     return impl.get_attack_score_raw(params, soar, asset, GetAttackScoreRawOutput)
 
 
 class CreateMessageParams(Params):
-    vault_id: str | None = Param(
-        description="Vault ID of the EML file", cef_types=["vault id"]
-    )
-    base64_data: str | None = Param(
-        description="Base64 encoded EML (alternative to vault_id)"
-    )
-    mailbox_email_address: str | None = Param(
-        description="Mailbox email address", cef_types=["email"]
-    )
-    canonical_id: str | None = Param(
-        description="Canonical ID of the message, if known"
-    )
-    external_message_id: str | None = Param(
-        description="ID of the message according to the external source"
-    )
-    external_thread_id: str | None = Param(
-        description="ID of the thread according to the external source"
-    )
-    external_created_at: str | None = Param(
-        description="Timestamp the message was created per external source (ISO 8601)"
-    )
+    vault_id: str | None = Param(description="Vault ID of the EML file", cef_types=["vault id"])
+    base64_data: str | None = Param(description="Base64 encoded EML (alternative to vault_id)")
+    mailbox_email_address: str | None = Param(description="Mailbox email address", cef_types=["email"])
+    canonical_id: str | None = Param(description="Canonical ID of the message, if known")
+    external_message_id: str | None = Param(description="ID of the message according to the external source")
+    external_thread_id: str | None = Param(description="ID of the thread according to the external source")
+    external_created_at: str | None = Param(description="Timestamp the message was created per external source (ISO 8601)")
     folder: str | None = Param(description="The mailbox folder the message is in")
-    labels: str | None = Param(
-        description="Comma-separated labels applied by the mailbox"
-    )
+    labels: str | None = Param(description="Comma-separated labels applied by the mailbox")
     route_type: str | None = Param(description="Directional route type of the message")
     message_type: str | None = Param(
         description="Message type override",
@@ -1622,22 +1294,14 @@ class CreateMessageOutput(ActionOutput):
     action_type="generic",
     read_only=False,
 )
-def create_message(
-    params: CreateMessageParams, soar: SOARClient, asset: Asset
-) -> CreateMessageOutput:
+def create_message(params: CreateMessageParams, soar: SOARClient, asset: Asset) -> CreateMessageOutput:
     return impl.create_message(params, soar, asset, CreateMessageOutput)
 
 
 class GetActionStateParams(Params):
-    message_group_id: str = Param(
-        description="Canonical group ID", primary=True, cef_types=["message group id"]
-    )
-    limit: float | None = Param(
-        description="Maximum number of results (max: 50)", default=10
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    message_group_id: str = Param(description="Canonical group ID", primary=True, cef_types=["message group id"])
+    limit: float | None = Param(description="Maximum number of results (max: 50)", default=10)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class GetActionStateOutput(ActionOutput):
@@ -1653,16 +1317,12 @@ class GetActionStateOutput(ActionOutput):
     description="Retrieve the state of manual actions for a canonical group",
     action_type="investigate",
 )
-def get_action_state(
-    params: GetActionStateParams, soar: SOARClient, asset: Asset
-) -> GetActionStateOutput:
+def get_action_state(params: GetActionStateParams, soar: SOARClient, asset: Asset) -> GetActionStateOutput:
     return impl.get_action_state(params, soar, asset, GetActionStateOutput)
 
 
 class GetMessageParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
 
 
 class SenderOutput(ActionOutput):
@@ -1685,16 +1345,12 @@ class GetMessageOutput(ActionOutput):
 
 
 @app.action(description="Retrieve a message by ID", action_type="investigate")
-def get_message(
-    params: GetMessageParams, soar: SOARClient, asset: Asset
-) -> GetMessageOutput:
+def get_message(params: GetMessageParams, soar: SOARClient, asset: Asset) -> GetMessageOutput:
     return impl.get_message(params, soar, asset, GetMessageOutput)
 
 
 class ActionMessageParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
     action: str | None = Param(
         description="Action to perform",
         value_list=[
@@ -1707,9 +1363,7 @@ class ActionMessageParams(Params):
             "delete_calendar_events",
         ],
     )
-    share_with_sublime: bool | None = Param(
-        description="Share with Sublime", default=False
-    )
+    share_with_sublime: bool | None = Param(description="Share with Sublime", default=False)
 
 
 class ActionMessageOutput(ActionOutput):
@@ -1721,25 +1375,15 @@ class ActionMessageOutput(ActionOutput):
     action_type="correct",
     read_only=False,
 )
-def action_message(
-    params: ActionMessageParams, soar: SOARClient, asset: Asset
-) -> ActionMessageOutput:
+def action_message(params: ActionMessageParams, soar: SOARClient, asset: Asset) -> ActionMessageOutput:
     return impl.action_message(params, soar, asset, ActionMessageOutput)
 
 
 class AnalyzeMessageByIdParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
-    run_active_detection_rules: bool | None = Param(
-        description="Run all active detection rules", default=False
-    )
-    run_all_detection_rules: bool | None = Param(
-        description="Run all detection rules including inactive", default=False
-    )
-    run_all_insights: bool | None = Param(
-        description="Run all insight queries", default=False
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
+    run_active_detection_rules: bool | None = Param(description="Run all active detection rules", default=False)
+    run_all_detection_rules: bool | None = Param(description="Run all detection rules including inactive", default=False)
+    run_all_insights: bool | None = Param(description="Run all insight queries", default=False)
 
 
 class AnalyzeMessageByIdOutput(ActionOutput):
@@ -1751,16 +1395,12 @@ class AnalyzeMessageByIdOutput(ActionOutput):
     description="Analyze an existing message by its ID against rules and queries",
     action_type="investigate",
 )
-def analyze_message_by_id(
-    params: AnalyzeMessageByIdParams, soar: SOARClient, asset: Asset
-) -> AnalyzeMessageByIdOutput:
+def analyze_message_by_id(params: AnalyzeMessageByIdParams, soar: SOARClient, asset: Asset) -> AnalyzeMessageByIdOutput:
     return impl.analyze_message_by_id(params, soar, asset, AnalyzeMessageByIdOutput)
 
 
 class GetAsaReportParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
 
 
 class GetAsaReportOutput(ActionOutput):
@@ -1775,16 +1415,12 @@ class GetAsaReportOutput(ActionOutput):
     description="Retrieve ASA (Attack Surface Assessment) report for a message",
     action_type="investigate",
 )
-def get_asa_report(
-    params: GetAsaReportParams, soar: SOARClient, asset: Asset
-) -> GetAsaReportOutput:
+def get_asa_report(params: GetAsaReportParams, soar: SOARClient, asset: Asset) -> GetAsaReportOutput:
     return impl.get_asa_report(params, soar, asset, GetAsaReportOutput)
 
 
 class GetAsaVerdictParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
 
 
 class GetAsaVerdictOutput(ActionOutput):
@@ -1795,19 +1431,13 @@ class GetAsaVerdictOutput(ActionOutput):
     description="Retrieve ASA verdict for a message (malicious, spam, graymail, likely_benign, benign, unknown)",
     action_type="investigate",
 )
-def get_asa_verdict(
-    params: GetAsaVerdictParams, soar: SOARClient, asset: Asset
-) -> GetAsaVerdictOutput:
+def get_asa_verdict(params: GetAsaVerdictParams, soar: SOARClient, asset: Asset) -> GetAsaVerdictOutput:
     return impl.get_asa_verdict(params, soar, asset, GetAsaVerdictOutput)
 
 
 class GetAttachmentImageParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
-    attachment_hash: str = Param(
-        description="MD5 hash of the attachment", cef_types=["md5"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
+    attachment_hash: str = Param(description="MD5 hash of the attachment", cef_types=["md5"])
 
 
 class GetAttachmentImageOutput(ActionOutput):
@@ -1819,22 +1449,12 @@ class GetAttachmentImageOutput(ActionOutput):
     action_type="investigate",
     summary_type=ScreenshotVaultSummary,
 )
-def get_attachment_image(
-    params: GetAttachmentImageParams, soar: SOARClient, asset: Asset
-) -> GetAttachmentImageOutput:
-    return impl.get_attachment_image(
-        params,
-        soar,
-        asset,
-        GetAttachmentImageOutput,
-        summary_cls=ScreenshotVaultSummary,
-    )
+def get_attachment_image(params: GetAttachmentImageParams, soar: SOARClient, asset: Asset) -> GetAttachmentImageOutput:
+    return impl.get_attachment_image(params, soar, asset, GetAttachmentImageOutput, summary_cls=ScreenshotVaultSummary)
 
 
 class GetAttackScoreParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
 
 
 class GetAttackScoreOutput(ActionOutput):
@@ -1848,16 +1468,12 @@ class GetAttackScoreOutput(ActionOutput):
     description="Evaluate attack score against an existing message",
     action_type="investigate",
 )
-def get_attack_score(
-    params: GetAttackScoreParams, soar: SOARClient, asset: Asset
-) -> GetAttackScoreOutput:
+def get_attack_score(params: GetAttackScoreParams, soar: SOARClient, asset: Asset) -> GetAttackScoreOutput:
     return impl.get_attack_score(params, soar, asset, GetAttackScoreOutput)
 
 
 class GetMessageImageParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
 
 
 class GetMessageImageOutput(ActionOutput):
@@ -1870,18 +1486,12 @@ class GetMessageImageOutput(ActionOutput):
     action_type="investigate",
     summary_type=ScreenshotVaultSummary,
 )
-def get_message_image(
-    params: GetMessageImageParams, soar: SOARClient, asset: Asset
-) -> GetMessageImageOutput:
-    return impl.get_message_image(
-        params, soar, asset, GetMessageImageOutput, summary_cls=ScreenshotVaultSummary
-    )
+def get_message_image(params: GetMessageImageParams, soar: SOARClient, asset: Asset) -> GetMessageImageOutput:
+    return impl.get_message_image(params, soar, asset, GetMessageImageOutput, summary_cls=ScreenshotVaultSummary)
 
 
 class GetMessageEmlParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
 
 
 @app.action(
@@ -1889,22 +1499,14 @@ class GetMessageEmlParams(Params):
     action_type="investigate",
     summary_type=VaultIdSummary,
 )
-def get_message_eml(
-    params: GetMessageEmlParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def get_message_eml(params: GetMessageEmlParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.get_message_eml(params, soar, asset, summary_cls=VaultIdSummary)
 
 
 class GetMessageImageLinkParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
-    link_duration_seconds: float | None = Param(
-        description="Duration the link is valid in seconds (default 900, max 604800 = 7 days)"
-    )
-    platform_link: bool | None = Param(
-        description="If true, link is presigned against Sublime; if false, may be a direct S3 link"
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
+    link_duration_seconds: float | None = Param(description="Duration the link is valid in seconds (default 900, max 604800 = 7 days)")
+    platform_link: bool | None = Param(description="If true, link is presigned against Sublime; if false, may be a direct S3 link")
 
 
 class GetMessageImageLinkOutput(ActionOutput):
@@ -1916,16 +1518,12 @@ class GetMessageImageLinkOutput(ActionOutput):
     description="Retrieve a temporary link to the image of a message",
     action_type="investigate",
 )
-def get_message_image_link(
-    params: GetMessageImageLinkParams, soar: SOARClient, asset: Asset
-) -> GetMessageImageLinkOutput:
+def get_message_image_link(params: GetMessageImageLinkParams, soar: SOARClient, asset: Asset) -> GetMessageImageLinkOutput:
     return impl.get_message_image_link(params, soar, asset, GetMessageImageLinkOutput)
 
 
 class SetAccessJustificationParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
     justification: str = Param(description="Justification text")
 
 
@@ -1934,16 +1532,12 @@ class SetAccessJustificationParams(Params):
     action_type="generic",
     read_only=False,
 )
-def set_access_justification(
-    params: SetAccessJustificationParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def set_access_justification(params: SetAccessJustificationParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.set_access_justification(params, soar, asset)
 
 
 class GetMessageDataModelParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
 
 
 class EmailOutput(ActionOutput):
@@ -1973,16 +1567,12 @@ class GetMessageDataModelOutput(ActionOutput):
     description="Retrieve the message's Message Data Model (MDM)",
     action_type="investigate",
 )
-def get_message_data_model(
-    params: GetMessageDataModelParams, soar: SOARClient, asset: Asset
-) -> GetMessageDataModelOutput:
+def get_message_data_model(params: GetMessageDataModelParams, soar: SOARClient, asset: Asset) -> GetMessageDataModelOutput:
     return impl.get_message_data_model(params, soar, asset, GetMessageDataModelOutput)
 
 
 class RestoreMessageParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
 
 
 class RestoreMessageOutput(ActionOutput):
@@ -1994,44 +1584,28 @@ class RestoreMessageOutput(ActionOutput):
     action_type="correct",
     read_only=False,
 )
-def restore_message(
-    params: RestoreMessageParams, soar: SOARClient, asset: Asset
-) -> RestoreMessageOutput:
+def restore_message(params: RestoreMessageParams, soar: SOARClient, asset: Asset) -> RestoreMessageOutput:
     return impl.restore_message(params, soar, asset, RestoreMessageOutput)
 
 
 class TrashMessageParams(Params):
-    message_id: str = Param(
-        description="UUID of the message", primary=True, cef_types=["message id"]
-    )
+    message_id: str = Param(description="UUID of the message", primary=True, cef_types=["message id"])
 
 
 class TrashMessageOutput(ActionOutput):
     task_id: str
 
 
-@app.action(
-    description="Trash an individual message", action_type="correct", read_only=False
-)
-def trash_message(
-    params: TrashMessageParams, soar: SOARClient, asset: Asset
-) -> TrashMessageOutput:
+@app.action(description="Trash an individual message", action_type="correct", read_only=False)
+def trash_message(params: TrashMessageParams, soar: SOARClient, asset: Asset) -> TrashMessageOutput:
     return impl.trash_message(params, soar, asset, TrashMessageOutput)
 
 
 class ListRulesParams(Params):
-    search: str | None = Param(
-        description="Case-insensitive substring match across rule name, description, and MQL source"
-    )
-    in_feed: bool | None = Param(
-        description="Restrict to rules that are explicitly in or not in a feed"
-    )
-    limit: float | None = Param(
-        description="Maximum number of results (max: 500)", default=50
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    search: str | None = Param(description="Case-insensitive substring match across rule name, description, and MQL source")
+    in_feed: bool | None = Param(description="Restrict to rules that are explicitly in or not in a feed")
+    limit: float | None = Param(description="Maximum number of results (max: 500)", default=50)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class ListRulesOutput(ActionOutput):
@@ -2047,9 +1621,7 @@ class ListRulesOutput(ActionOutput):
 
 
 @app.action(description="List all rules in the organization", action_type="investigate")
-def list_rules(
-    params: ListRulesParams, soar: SOARClient, asset: Asset
-) -> ListRulesOutput:
+def list_rules(params: ListRulesParams, soar: SOARClient, asset: Asset) -> ListRulesOutput:
     return impl.list_rules(params, soar, asset, ListRulesOutput)
 
 
@@ -2070,26 +1642,14 @@ class CreateRuleParams(Params):
     label: str | None = Param(description="Rule label")
     maturity: str | None = Param(description="Rule maturity")
     tags: str | None = Param(description="Comma-separated tags")
-    user_provided_tags: str | None = Param(
-        description="Comma-separated user-provided tags"
-    )
+    user_provided_tags: str | None = Param(description="Comma-separated user-provided tags")
     attack_types: str | None = Param(description="Comma-separated attack types")
-    detection_methods: str | None = Param(
-        description="Comma-separated detection technologies"
-    )
-    tactics_and_techniques: str | None = Param(
-        description="Comma-separated tactics and techniques"
-    )
-    false_positives: str | None = Param(
-        description="Comma-separated descriptions of known false positives"
-    )
+    detection_methods: str | None = Param(description="Comma-separated detection technologies")
+    tactics_and_techniques: str | None = Param(description="Comma-separated tactics and techniques")
+    false_positives: str | None = Param(description="Comma-separated descriptions of known false positives")
     references: str | None = Param(description="Comma-separated URL references")
-    action_ids: str | None = Param(
-        description="Comma-separated IDs of actions to run when the rule triggers"
-    )
-    authors: str | None = Param(
-        description='Rule authors as JSON array (e.g. [{"name":"Jane","twitter":"@jane"}])'
-    )
+    action_ids: str | None = Param(description="Comma-separated IDs of actions to run when the rule triggers")
+    authors: str | None = Param(description='Rule authors as JSON array (e.g. [{"name":"Jane","twitter":"@jane"}])')
     auto_review_classification: str | None = Param(
         description="Classification for auto-reviewed messages",
         value_list=[
@@ -2101,24 +1661,12 @@ class CreateRuleParams(Params):
             "unwanted",
         ],
     )
-    auto_review_auto_share: bool | None = Param(
-        description="Whether auto-reviewed messages will be shared"
-    )
-    triage_abuse_reports: bool | None = Param(
-        description="(Triage) run for reported messages"
-    )
-    triage_flagged_messages: bool | None = Param(
-        description="(Triage) run for flagged messages"
-    )
-    triage_classification_changes: bool | None = Param(
-        description="(Triage) run when classification changes"
-    )
-    triage_dlp_rule_matched: bool | None = Param(
-        description="(Triage) run for messages matching a DLP rule"
-    )
-    run_triage_on_excluded_messages: bool | None = Param(
-        description="(Triage) run even on globally-excluded messages"
-    )
+    auto_review_auto_share: bool | None = Param(description="Whether auto-reviewed messages will be shared")
+    triage_abuse_reports: bool | None = Param(description="(Triage) run for reported messages")
+    triage_flagged_messages: bool | None = Param(description="(Triage) run for flagged messages")
+    triage_classification_changes: bool | None = Param(description="(Triage) run when classification changes")
+    triage_dlp_rule_matched: bool | None = Param(description="(Triage) run for messages matching a DLP rule")
+    run_triage_on_excluded_messages: bool | None = Param(description="(Triage) run even on globally-excluded messages")
 
 
 class CreateRuleOutput(ActionOutput):
@@ -2133,24 +1681,16 @@ class CreateRuleOutput(ActionOutput):
     action_type="generic",
     read_only=False,
 )
-def create_rule(
-    params: CreateRuleParams, soar: SOARClient, asset: Asset
-) -> CreateRuleOutput:
+def create_rule(params: CreateRuleParams, soar: SOARClient, asset: Asset) -> CreateRuleOutput:
     return impl.create_rule(params, soar, asset, CreateRuleOutput)
 
 
 class ListRuleHistoryParams(Params):
-    start_time: str = Param(
-        description="Classification start time (ISO 8601 UTC, required)"
-    )
-    end_time: str = Param(
-        description="Classification end time (ISO 8601 UTC, required)"
-    )
+    start_time: str = Param(description="Classification start time (ISO 8601 UTC, required)")
+    end_time: str = Param(description="Classification end time (ISO 8601 UTC, required)")
     active: bool | None = Param(description="Restrict to rules that are active")
     in_feed: bool | None = Param(description="Restrict to rules that are in a feed")
-    type: str | None = Param(
-        description="Comma-separated rule types (detection, triage, dlp)"
-    )
+    type: str | None = Param(description="Comma-separated rule types (detection, triage, dlp)")
     count: float | None = Param(description="Number of results to return")
     offset: float | None = Param(description="Offset from the first result")
 
@@ -2163,9 +1703,7 @@ class ListRuleHistoryOutput(ActionOutput):
     description="List history for rules across the organization",
     action_type="investigate",
 )
-def list_rule_history(
-    params: ListRuleHistoryParams, soar: SOARClient, asset: Asset
-) -> ListRuleHistoryOutput:
+def list_rule_history(params: ListRuleHistoryParams, soar: SOARClient, asset: Asset) -> ListRuleHistoryOutput:
     return impl.list_rule_history(params, soar, asset, ListRuleHistoryOutput)
 
 
@@ -2181,32 +1719,22 @@ class ValidateRuleOutput(ActionOutput):
     list: str
 
 
-@app.action(
-    description="Validate rule MQL syntax without creating", action_type="investigate"
-)
-def validate_rule(
-    params: ValidateRuleParams, soar: SOARClient, asset: Asset
-) -> ValidateRuleOutput:
+@app.action(description="Validate rule MQL syntax without creating", action_type="investigate")
+def validate_rule(params: ValidateRuleParams, soar: SOARClient, asset: Asset) -> ValidateRuleOutput:
     return impl.validate_rule(params, soar, asset, ValidateRuleOutput)
 
 
 class DeleteRuleParams(Params):
-    rule_id: str = Param(
-        description="UUID of the rule", primary=True, cef_types=["rule id"]
-    )
+    rule_id: str = Param(description="UUID of the rule", primary=True, cef_types=["rule id"])
 
 
 @app.action(description="Delete a rule by ID", action_type="generic", read_only=False)
-def delete_rule(
-    params: DeleteRuleParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def delete_rule(params: DeleteRuleParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.delete_rule(params, soar, asset)
 
 
 class GetRuleParams(Params):
-    rule_id: str = Param(
-        description="UUID of the rule", primary=True, cef_types=["rule id"]
-    )
+    rule_id: str = Param(description="UUID of the rule", primary=True, cef_types=["rule id"])
 
 
 class GetRuleOutput(ActionOutput):
@@ -2225,9 +1753,7 @@ def get_rule(params: GetRuleParams, soar: SOARClient, asset: Asset) -> GetRuleOu
 
 
 class UpdateRuleParams(Params):
-    rule_id: str = Param(
-        description="UUID of the rule", primary=True, cef_types=["rule id"]
-    )
+    rule_id: str = Param(description="UUID of the rule", primary=True, cef_types=["rule id"])
     name: str | None = Param(description="New rule name")
     source: str | None = Param(description="New MQL source")
     severity: str | None = Param(
@@ -2238,26 +1764,14 @@ class UpdateRuleParams(Params):
     label: str | None = Param(description="Rule label")
     maturity: str | None = Param(description="Rule maturity")
     tags: str | None = Param(description="Comma-separated tags")
-    user_provided_tags: str | None = Param(
-        description="Comma-separated user-provided tags"
-    )
+    user_provided_tags: str | None = Param(description="Comma-separated user-provided tags")
     attack_types: str | None = Param(description="Comma-separated attack types")
-    detection_methods: str | None = Param(
-        description="Comma-separated detection technologies"
-    )
-    tactics_and_techniques: str | None = Param(
-        description="Comma-separated tactics and techniques"
-    )
-    false_positives: str | None = Param(
-        description="Comma-separated descriptions of known false positives"
-    )
+    detection_methods: str | None = Param(description="Comma-separated detection technologies")
+    tactics_and_techniques: str | None = Param(description="Comma-separated tactics and techniques")
+    false_positives: str | None = Param(description="Comma-separated descriptions of known false positives")
     references: str | None = Param(description="Comma-separated URL references")
-    action_ids: str | None = Param(
-        description="Comma-separated IDs of actions to run when the rule triggers"
-    )
-    authors: str | None = Param(
-        description='Rule authors as JSON array (e.g. [{"name":"Jane","twitter":"@jane"}])'
-    )
+    action_ids: str | None = Param(description="Comma-separated IDs of actions to run when the rule triggers")
+    authors: str | None = Param(description='Rule authors as JSON array (e.g. [{"name":"Jane","twitter":"@jane"}])')
     auto_review_classification: str | None = Param(
         description="Classification for auto-reviewed messages",
         value_list=[
@@ -2269,24 +1783,12 @@ class UpdateRuleParams(Params):
             "unwanted",
         ],
     )
-    auto_review_auto_share: bool | None = Param(
-        description="Whether auto-reviewed messages will be shared"
-    )
-    triage_abuse_reports: bool | None = Param(
-        description="(Triage) run for reported messages"
-    )
-    triage_flagged_messages: bool | None = Param(
-        description="(Triage) run for flagged messages"
-    )
-    triage_classification_changes: bool | None = Param(
-        description="(Triage) run when classification changes"
-    )
-    triage_dlp_rule_matched: bool | None = Param(
-        description="(Triage) run for messages matching a DLP rule"
-    )
-    run_triage_on_excluded_messages: bool | None = Param(
-        description="(Triage) run even on globally-excluded messages"
-    )
+    auto_review_auto_share: bool | None = Param(description="Whether auto-reviewed messages will be shared")
+    triage_abuse_reports: bool | None = Param(description="(Triage) run for reported messages")
+    triage_flagged_messages: bool | None = Param(description="(Triage) run for flagged messages")
+    triage_classification_changes: bool | None = Param(description="(Triage) run when classification changes")
+    triage_dlp_rule_matched: bool | None = Param(description="(Triage) run for messages matching a DLP rule")
+    run_triage_on_excluded_messages: bool | None = Param(description="(Triage) run even on globally-excluded messages")
 
 
 class UpdateRuleOutput(ActionOutput):
@@ -2296,19 +1798,13 @@ class UpdateRuleOutput(ActionOutput):
     active: bool
 
 
-@app.action(
-    description="Update an existing rule", action_type="generic", read_only=False
-)
-def update_rule(
-    params: UpdateRuleParams, soar: SOARClient, asset: Asset
-) -> UpdateRuleOutput:
+@app.action(description="Update an existing rule", action_type="generic", read_only=False)
+def update_rule(params: UpdateRuleParams, soar: SOARClient, asset: Asset) -> UpdateRuleOutput:
     return impl.update_rule(params, soar, asset, UpdateRuleOutput)
 
 
 class ActivateRuleParams(Params):
-    rule_id: str = Param(
-        description="UUID of the rule", primary=True, cef_types=["rule id"]
-    )
+    rule_id: str = Param(description="UUID of the rule", primary=True, cef_types=["rule id"])
 
 
 class ActivateRuleOutput(ActionOutput):
@@ -2318,16 +1814,12 @@ class ActivateRuleOutput(ActionOutput):
 
 
 @app.action(description="Activate a rule", action_type="generic", read_only=False)
-def activate_rule(
-    params: ActivateRuleParams, soar: SOARClient, asset: Asset
-) -> ActivateRuleOutput:
+def activate_rule(params: ActivateRuleParams, soar: SOARClient, asset: Asset) -> ActivateRuleOutput:
     return impl.activate_rule(params, soar, asset, ActivateRuleOutput)
 
 
 class DeactivateRuleParams(Params):
-    rule_id: str = Param(
-        description="UUID of the rule", primary=True, cef_types=["rule id"]
-    )
+    rule_id: str = Param(description="UUID of the rule", primary=True, cef_types=["rule id"])
 
 
 class DeactivateRuleOutput(ActionOutput):
@@ -2337,23 +1829,15 @@ class DeactivateRuleOutput(ActionOutput):
 
 
 @app.action(description="Deactivate a rule", action_type="generic", read_only=False)
-def deactivate_rule(
-    params: DeactivateRuleParams, soar: SOARClient, asset: Asset
-) -> DeactivateRuleOutput:
+def deactivate_rule(params: DeactivateRuleParams, soar: SOARClient, asset: Asset) -> DeactivateRuleOutput:
     return impl.deactivate_rule(params, soar, asset, DeactivateRuleOutput)
 
 
 class GetRuleHistoryParams(Params):
-    rule_id: str = Param(
-        description="UUID of the rule", primary=True, cef_types=["rule id"]
-    )
-    start_time: str | None = Param(
-        description="Classification start time (ISO 8601 UTC)"
-    )
+    rule_id: str = Param(description="UUID of the rule", primary=True, cef_types=["rule id"])
+    start_time: str | None = Param(description="Classification start time (ISO 8601 UTC)")
     end_time: str | None = Param(description="Classification end time (ISO 8601 UTC)")
-    use_rule_last_updated_as_created_at: bool | None = Param(
-        description="Filter to classifications made since the rule was last updated"
-    )
+    use_rule_last_updated_as_created_at: bool | None = Param(description="Filter to classifications made since the rule was last updated")
 
 
 class RuleOutput(ActionOutput):
@@ -2370,12 +1854,8 @@ class GetRuleHistoryOutput(ActionOutput):
     flagged_message_groups_report: FlaggedMessageGroupsReportOutput
 
 
-@app.action(
-    description="Retrieve history of a specific rule", action_type="investigate"
-)
-def get_rule_history(
-    params: GetRuleHistoryParams, soar: SOARClient, asset: Asset
-) -> GetRuleHistoryOutput:
+@app.action(description="Retrieve history of a specific rule", action_type="investigate")
+def get_rule_history(params: GetRuleHistoryParams, soar: SOARClient, asset: Asset) -> GetRuleHistoryOutput:
     return impl.get_rule_history(params, soar, asset, GetRuleHistoryOutput)
 
 
@@ -2398,9 +1878,7 @@ def get_task(params: GetTaskParams, soar: SOARClient, asset: Asset) -> GetTaskOu
 class ListUserReportsParams(Params):
     start_time: str | None = Param(description="Start time filter (ISO 8601 UTC)")
     end_time: str | None = Param(description="End time filter (ISO 8601 UTC)")
-    limit: float | None = Param(
-        description="Maximum number of results (max: 500)", default=100
-    )
+    limit: float | None = Param(description="Maximum number of results (max: 500)", default=100)
 
 
 class ListUserReportsOutput(ActionOutput):
@@ -2410,28 +1888,18 @@ class ListUserReportsOutput(ActionOutput):
     reported_message_canonical_id: str
 
 
-@app.action(
-    description="List user-submitted phishing reports", action_type="investigate"
-)
-def list_user_reports(
-    params: ListUserReportsParams, soar: SOARClient, asset: Asset
-) -> ListUserReportsOutput:
+@app.action(description="List user-submitted phishing reports", action_type="investigate")
+def list_user_reports(params: ListUserReportsParams, soar: SOARClient, asset: Asset) -> ListUserReportsOutput:
     return impl.list_user_reports(params, soar, asset, ListUserReportsOutput)
 
 
 class AssignRoleParams(Params):
-    email_address: str = Param(
-        description="Email address of the user", primary=True, cef_types=["email"]
-    )
+    email_address: str = Param(description="Email address of the user", primary=True, cef_types=["email"])
     role_title: str = Param(description="Role title to assign")
 
 
-@app.action(
-    description="Assign a role to a user", action_type="generic", read_only=False
-)
-def assign_role(
-    params: AssignRoleParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+@app.action(description="Assign a role to a user", action_type="generic", read_only=False)
+def assign_role(params: AssignRoleParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.assign_role(params, soar, asset)
 
 
@@ -2443,12 +1911,8 @@ class ListScimResourceTypesOutput(ActionOutput):
 
 
 @app.action(description="List SCIM resource types", action_type="investigate")
-def list_scim_resource_types(
-    params: Params, soar: SOARClient, asset: Asset
-) -> ListScimResourceTypesOutput:
-    return impl.list_scim_resource_types(
-        params, soar, asset, ListScimResourceTypesOutput
-    )
+def list_scim_resource_types(params: Params, soar: SOARClient, asset: Asset) -> ListScimResourceTypesOutput:
+    return impl.list_scim_resource_types(params, soar, asset, ListScimResourceTypesOutput)
 
 
 class GetScimResourceTypeParams(Params):
@@ -2463,19 +1927,13 @@ class GetScimResourceTypeOutput(ActionOutput):
 
 
 @app.action(description="Get a single SCIM resource type", action_type="investigate")
-def get_scim_resource_type(
-    params: GetScimResourceTypeParams, soar: SOARClient, asset: Asset
-) -> GetScimResourceTypeOutput:
+def get_scim_resource_type(params: GetScimResourceTypeParams, soar: SOARClient, asset: Asset) -> GetScimResourceTypeOutput:
     return impl.get_scim_resource_type(params, soar, asset, GetScimResourceTypeOutput)
 
 
 class ListScimUsersParams(Params):
-    count: float | None = Param(
-        description="Maximum number of results (max: 1000)", default=100
-    )
-    start_index: float | None = Param(
-        description="1-based start index for pagination", default=1
-    )
+    count: float | None = Param(description="Maximum number of results (max: 1000)", default=100)
+    start_index: float | None = Param(description="1-based start index for pagination", default=1)
     filter: str | None = Param(description="SCIM filter expression")
 
 
@@ -2492,16 +1950,12 @@ class ListScimUsersOutput(ActionOutput):
 
 
 @app.action(description="List SCIM provisioned users", action_type="investigate")
-def list_scim_users(
-    params: ListScimUsersParams, soar: SOARClient, asset: Asset
-) -> ListScimUsersOutput:
+def list_scim_users(params: ListScimUsersParams, soar: SOARClient, asset: Asset) -> ListScimUsersOutput:
     return impl.list_scim_users(params, soar, asset, ListScimUsersOutput)
 
 
 class CreateScimUserParams(Params):
-    user_name: str = Param(
-        description="Username (typically email)", primary=True, cef_types=["email"]
-    )
+    user_name: str = Param(description="Username (typically email)", primary=True, cef_types=["email"])
     given_name: str = Param(description="First name")
     family_name: str = Param(description="Last name")
     email: str = Param(description="Email address", cef_types=["email"])
@@ -2514,12 +1968,8 @@ class CreateScimUserOutput(ActionOutput):
     active: bool
 
 
-@app.action(
-    description="Create a user via SCIM", action_type="generic", read_only=False
-)
-def create_scim_user(
-    params: CreateScimUserParams, soar: SOARClient, asset: Asset
-) -> CreateScimUserOutput:
+@app.action(description="Create a user via SCIM", action_type="generic", read_only=False)
+def create_scim_user(params: CreateScimUserParams, soar: SOARClient, asset: Asset) -> CreateScimUserOutput:
     return impl.create_scim_user(params, soar, asset, CreateScimUserOutput)
 
 
@@ -2540,9 +1990,7 @@ class GetScimUserOutput(ActionOutput):
 
 
 @app.action(description="Get a SCIM user by ID", action_type="investigate")
-def get_scim_user(
-    params: GetScimUserParams, soar: SOARClient, asset: Asset
-) -> GetScimUserOutput:
+def get_scim_user(params: GetScimUserParams, soar: SOARClient, asset: Asset) -> GetScimUserOutput:
     return impl.get_scim_user(params, soar, asset, GetScimUserOutput)
 
 
@@ -2550,12 +1998,8 @@ class DeleteScimUserParams(Params):
     user_id: str = Param(description="Sublime user ID", primary=True)
 
 
-@app.action(
-    description="Delete a SCIM user by ID", action_type="generic", read_only=False
-)
-def delete_scim_user(
-    params: DeleteScimUserParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+@app.action(description="Delete a SCIM user by ID", action_type="generic", read_only=False)
+def delete_scim_user(params: DeleteScimUserParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.delete_scim_user(params, soar, asset)
 
 
@@ -2579,17 +2023,13 @@ class UpdateScimUserOutput(ActionOutput):
     action_type="generic",
     read_only=False,
 )
-def update_scim_user(
-    params: UpdateScimUserParams, soar: SOARClient, asset: Asset
-) -> UpdateScimUserOutput:
+def update_scim_user(params: UpdateScimUserParams, soar: SOARClient, asset: Asset) -> UpdateScimUserOutput:
     return impl.update_scim_user(params, soar, asset, UpdateScimUserOutput)
 
 
 class PatchScimUserParams(Params):
     user_id: str = Param(description="Sublime user ID", primary=True)
-    operations_json: str = Param(
-        description='JSON array of SCIM PATCH operations, e.g. [{"op":"replace","path":"active","value":false}]'
-    )
+    operations_json: str = Param(description='JSON array of SCIM PATCH operations, e.g. [{"op":"replace","path":"active","value":false}]')
 
 
 class PatchScimUserOutput(ActionOutput):
@@ -2603,9 +2043,7 @@ class PatchScimUserOutput(ActionOutput):
     action_type="generic",
     read_only=False,
 )
-def patch_scim_user(
-    params: PatchScimUserParams, soar: SOARClient, asset: Asset
-) -> PatchScimUserOutput:
+def patch_scim_user(params: PatchScimUserParams, soar: SOARClient, asset: Asset) -> PatchScimUserOutput:
     return impl.patch_scim_user(params, soar, asset, PatchScimUserOutput)
 
 
@@ -2613,12 +2051,8 @@ class ValidateScimAuthOutput(ActionOutput):
     user_email: str = OutputField(cef_types=["email"])
 
 
-@app.action(
-    description="Validate SCIM-specific authentication", action_type="investigate"
-)
-def validate_scim_auth(
-    params: Params, soar: SOARClient, asset: Asset
-) -> ValidateScimAuthOutput:
+@app.action(description="Validate SCIM-specific authentication", action_type="investigate")
+def validate_scim_auth(params: Params, soar: SOARClient, asset: Asset) -> ValidateScimAuthOutput:
     return impl.validate_scim_auth(params, soar, asset, ValidateScimAuthOutput)
 
 
@@ -2629,9 +2063,7 @@ class ListScimSchemasOutput(ActionOutput):
 
 
 @app.action(description="List SCIM schemas", action_type="investigate")
-def list_scim_schemas(
-    params: Params, soar: SOARClient, asset: Asset
-) -> ListScimSchemasOutput:
+def list_scim_schemas(params: Params, soar: SOARClient, asset: Asset) -> ListScimSchemasOutput:
     return impl.list_scim_schemas(params, soar, asset, ListScimSchemasOutput)
 
 
@@ -2650,9 +2082,7 @@ class GetScimSchemaOutput(ActionOutput):
 
 
 @app.action(description="Get a single SCIM schema by ID", action_type="investigate")
-def get_scim_schema(
-    params: GetScimSchemaParams, soar: SOARClient, asset: Asset
-) -> GetScimSchemaOutput:
+def get_scim_schema(params: GetScimSchemaParams, soar: SOARClient, asset: Asset) -> GetScimSchemaOutput:
     return impl.get_scim_schema(params, soar, asset, GetScimSchemaOutput)
 
 
@@ -2689,34 +2119,18 @@ class GetScimServiceProviderConfigOutput(ActionOutput):
     etag: EtagOutput
 
 
-@app.action(
-    description="Get SCIM service provider configuration", action_type="investigate"
-)
-def get_scim_service_provider_config(
-    params: Params, soar: SOARClient, asset: Asset
-) -> GetScimServiceProviderConfigOutput:
-    return impl.get_scim_service_provider_config(
-        params, soar, asset, GetScimServiceProviderConfigOutput
-    )
+@app.action(description="Get SCIM service provider configuration", action_type="investigate")
+def get_scim_service_provider_config(params: Params, soar: SOARClient, asset: Asset) -> GetScimServiceProviderConfigOutput:
+    return impl.get_scim_service_provider_config(params, soar, asset, GetScimServiceProviderConfigOutput)
 
 
 class ListChildOrganizationsParams(Params):
     active: bool | None = Param(description="Filter by active status (omit for all)")
-    limit: float | None = Param(
-        description="Maximum number of organizations to return (max: 500)", default=50
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
-    max_depth: float | None = Param(
-        description="Hierarchy depth to descend (1 = direct children)"
-    )
-    parent_org_id: str | None = Param(
-        description="Restrict results to descendants of this organization ID"
-    )
-    search: str | None = Param(
-        description="Case-insensitive substring filter on organization name"
-    )
+    limit: float | None = Param(description="Maximum number of organizations to return (max: 500)", default=50)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
+    max_depth: float | None = Param(description="Hierarchy depth to descend (1 = direct children)")
+    parent_org_id: str | None = Param(description="Restrict results to descendants of this organization ID")
+    search: str | None = Param(description="Case-insensitive substring filter on organization name")
 
 
 class ListChildOrganizationsOutput(ActionOutput):
@@ -2729,19 +2143,13 @@ class ListChildOrganizationsOutput(ActionOutput):
     description="List child organizations under the calling organization",
     action_type="investigate",
 )
-def list_child_organizations(
-    params: ListChildOrganizationsParams, soar: SOARClient, asset: Asset
-) -> list[ListChildOrganizationsOutput]:
-    return impl.list_child_organizations(
-        params, soar, asset, ListChildOrganizationsOutput
-    )
+def list_child_organizations(params: ListChildOrganizationsParams, soar: SOARClient, asset: Asset) -> list[ListChildOrganizationsOutput]:
+    return impl.list_child_organizations(params, soar, asset, ListChildOrganizationsOutput)
 
 
 class CreateChildOrganizationParams(Params):
     name: str = Param(description="Display name for the child organization")
-    licenses_json: str | None = Param(
-        description="Optional JSON array/object of licenses to provision"
-    )
+    licenses_json: str | None = Param(description="Optional JSON array/object of licenses to provision")
 
 
 class CreateChildOrganizationOutput(ActionOutput):
@@ -2754,20 +2162,14 @@ class CreateChildOrganizationOutput(ActionOutput):
     action_type="generic",
     read_only=False,
 )
-def create_child_organization(
-    params: CreateChildOrganizationParams, soar: SOARClient, asset: Asset
-) -> CreateChildOrganizationOutput:
-    return impl.create_child_organization(
-        params, soar, asset, CreateChildOrganizationOutput
-    )
+def create_child_organization(params: CreateChildOrganizationParams, soar: SOARClient, asset: Asset) -> CreateChildOrganizationOutput:
+    return impl.create_child_organization(params, soar, asset, CreateChildOrganizationOutput)
 
 
 class PatchChildOrganizationParams(Params):
     organization_id: str = Param(description="Child organization ID", primary=True)
     name: str | None = Param(description="Updated display name")
-    delegation_json: str | None = Param(
-        description="Optional JSON object of delegation settings to merge into the patch body"
-    )
+    delegation_json: str | None = Param(description="Optional JSON object of delegation settings to merge into the patch body")
 
 
 class PatchChildOrganizationOutput(ActionOutput):
@@ -2780,19 +2182,13 @@ class PatchChildOrganizationOutput(ActionOutput):
     action_type="generic",
     read_only=False,
 )
-def patch_child_organization(
-    params: PatchChildOrganizationParams, soar: SOARClient, asset: Asset
-) -> PatchChildOrganizationOutput:
-    return impl.patch_child_organization(
-        params, soar, asset, PatchChildOrganizationOutput
-    )
+def patch_child_organization(params: PatchChildOrganizationParams, soar: SOARClient, asset: Asset) -> PatchChildOrganizationOutput:
+    return impl.patch_child_organization(params, soar, asset, PatchChildOrganizationOutput)
 
 
 class PatchChildOrganizationLicensingParams(Params):
     organization_id: str = Param(description="Child organization ID", primary=True)
-    licensing_json: str = Param(
-        description="JSON body for the desired license transition"
-    )
+    licensing_json: str = Param(description="JSON body for the desired license transition")
 
 
 class PatchChildOrganizationLicensingOutput(ActionOutput):
@@ -2807,15 +2203,11 @@ class PatchChildOrganizationLicensingOutput(ActionOutput):
 def patch_child_organization_licensing(
     params: PatchChildOrganizationLicensingParams, soar: SOARClient, asset: Asset
 ) -> PatchChildOrganizationLicensingOutput:
-    return impl.patch_child_organization_licensing(
-        params, soar, asset, PatchChildOrganizationLicensingOutput
-    )
+    return impl.patch_child_organization_licensing(params, soar, asset, PatchChildOrganizationLicensingOutput)
 
 
 class BulkPatchChildOrganizationLicensingParams(Params):
-    bulk_licensing_json: str = Param(
-        description="JSON body for bulk license transitions (up to 200 orgs)"
-    )
+    bulk_licensing_json: str = Param(description="JSON body for bulk license transitions (up to 200 orgs)")
 
 
 class BulkPatchChildOrganizationLicensingOutput(ActionOutput):
@@ -2830,20 +2222,14 @@ class BulkPatchChildOrganizationLicensingOutput(ActionOutput):
 def bulk_patch_child_organization_licensing(
     params: BulkPatchChildOrganizationLicensingParams, soar: SOARClient, asset: Asset
 ) -> BulkPatchChildOrganizationLicensingOutput:
-    return impl.bulk_patch_child_organization_licensing(
-        params, soar, asset, BulkPatchChildOrganizationLicensingOutput
-    )
+    return impl.bulk_patch_child_organization_licensing(params, soar, asset, BulkPatchChildOrganizationLicensingOutput)
 
 
 class ListEmailBombsParams(Params):
     active: bool | None = Param(description="Filter by active status")
     mailbox_id: str | None = Param(description="Filter by mailbox ID")
-    limit: float | None = Param(
-        description="Maximum number of email bombs to return (max: 500)", default=100
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    limit: float | None = Param(description="Maximum number of email bombs to return (max: 500)", default=100)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class ListEmailBombsOutput(ActionOutput):
@@ -2855,17 +2241,13 @@ class ListEmailBombsOutput(ActionOutput):
 
 
 @app.action(description="List email bombs", action_type="investigate")
-def list_email_bombs(
-    params: ListEmailBombsParams, soar: SOARClient, asset: Asset
-) -> list[ListEmailBombsOutput]:
+def list_email_bombs(params: ListEmailBombsParams, soar: SOARClient, asset: Asset) -> list[ListEmailBombsOutput]:
     return impl.list_email_bombs(params, soar, asset, ListEmailBombsOutput)
 
 
 class CreateEmailBombParams(Params):
     mailbox_id: str = Param(description="Mailbox ID to declare the email bomb for")
-    start_time: str = Param(
-        description="Start of the email bomb time range (ISO 8601 UTC)"
-    )
+    start_time: str = Param(description="Start of the email bomb time range (ISO 8601 UTC)")
     end_time: str = Param(description="End of the email bomb time range (ISO 8601 UTC)")
 
 
@@ -2878,9 +2260,7 @@ class CreateEmailBombOutput(ActionOutput):
     action_type="generic",
     read_only=False,
 )
-def create_email_bomb(
-    params: CreateEmailBombParams, soar: SOARClient, asset: Asset
-) -> CreateEmailBombOutput:
+def create_email_bomb(params: CreateEmailBombParams, soar: SOARClient, asset: Asset) -> CreateEmailBombOutput:
     return impl.create_email_bomb(params, soar, asset, CreateEmailBombOutput)
 
 
@@ -2897,9 +2277,7 @@ class GetEmailBombOutput(ActionOutput):
 
 
 @app.action(description="Get an email bomb by ID", action_type="investigate")
-def get_email_bomb(
-    params: GetEmailBombParams, soar: SOARClient, asset: Asset
-) -> GetEmailBombOutput:
+def get_email_bomb(params: GetEmailBombParams, soar: SOARClient, asset: Asset) -> GetEmailBombOutput:
     return impl.get_email_bomb(params, soar, asset, GetEmailBombOutput)
 
 
@@ -2913,20 +2291,14 @@ class DismissEmailBombParams(Params):
     action_type="correct",
     read_only=False,
 )
-def dismiss_email_bomb(
-    params: DismissEmailBombParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def dismiss_email_bomb(params: DismissEmailBombParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.dismiss_email_bomb(params, soar, asset)
 
 
 class ListDlpReleaseRequestsParams(Params):
     status: str | None = Param(description="Optional status filter")
-    limit: float | None = Param(
-        description="Maximum number of requests to return (max: 500)", default=100
-    )
-    offset: float | None = Param(
-        description="Zero-based offset for pagination", default=0
-    )
+    limit: float | None = Param(description="Maximum number of requests to return (max: 500)", default=100)
+    offset: float | None = Param(description="Zero-based offset for pagination", default=0)
 
 
 class ListDlpReleaseRequestsOutput(ActionOutput):
@@ -2935,12 +2307,8 @@ class ListDlpReleaseRequestsOutput(ActionOutput):
 
 
 @app.action(description="List DLP release requests", action_type="investigate")
-def list_dlp_release_requests(
-    params: ListDlpReleaseRequestsParams, soar: SOARClient, asset: Asset
-) -> list[ListDlpReleaseRequestsOutput]:
-    return impl.list_dlp_release_requests(
-        params, soar, asset, ListDlpReleaseRequestsOutput
-    )
+def list_dlp_release_requests(params: ListDlpReleaseRequestsParams, soar: SOARClient, asset: Asset) -> list[ListDlpReleaseRequestsOutput]:
+    return impl.list_dlp_release_requests(params, soar, asset, ListDlpReleaseRequestsOutput)
 
 
 class GetDlpReleaseRequestParams(Params):
@@ -2953,9 +2321,7 @@ class GetDlpReleaseRequestOutput(ActionOutput):
 
 
 @app.action(description="Get a DLP release request by ID", action_type="investigate")
-def get_dlp_release_request(
-    params: GetDlpReleaseRequestParams, soar: SOARClient, asset: Asset
-) -> GetDlpReleaseRequestOutput:
+def get_dlp_release_request(params: GetDlpReleaseRequestParams, soar: SOARClient, asset: Asset) -> GetDlpReleaseRequestOutput:
     return impl.get_dlp_release_request(params, soar, asset, GetDlpReleaseRequestOutput)
 
 
@@ -2969,9 +2335,7 @@ class ApproveDlpReleaseRequestParams(Params):
     action_type="correct",
     read_only=False,
 )
-def approve_dlp_release_request(
-    params: ApproveDlpReleaseRequestParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def approve_dlp_release_request(params: ApproveDlpReleaseRequestParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.approve_dlp_release_request(params, soar, asset, ActionOutput)
 
 
@@ -2985,16 +2349,12 @@ class DenyDlpReleaseRequestParams(Params):
     action_type="correct",
     read_only=False,
 )
-def deny_dlp_release_request(
-    params: DenyDlpReleaseRequestParams, soar: SOARClient, asset: Asset
-) -> ActionOutput:
+def deny_dlp_release_request(params: DenyDlpReleaseRequestParams, soar: SOARClient, asset: Asset) -> ActionOutput:
     return impl.deny_dlp_release_request(params, soar, asset, ActionOutput)
 
 
 @app.webhook("webhook", allowed_methods=["POST"])
-def sublime_webhook(
-    request: WebhookRequest[Asset], soar: SOARClient
-) -> WebhookResponse:
+def sublime_webhook(request: WebhookRequest[Asset], soar: SOARClient) -> WebhookResponse:
     return handle_sublime_webhook(request, soar)
 
 
